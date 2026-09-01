@@ -1,0 +1,28 @@
+name: helm-docs
+description: >-
+  Installs a pinned helm-docs and, unless told otherwise, regenerates every chart
+  README. Used by the pull request check and the upstream sync workflow so the
+  pinned version lives in exactly one place.
+
+inputs:
+  regenerate:
+    description: Also run the regeneration. Set to "false" to only install the tool.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Install helm-docs
+      shell: bash
+      env:
+        # renovate: datasource=github-releases depName=norwoodj/helm-docs
+        HELM_DOCS_VERSION: 1.14.2
+      run: |
+        curl -sSfL "https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/helm-docs_${HELM_DOCS_VERSION}_Linux_x86_64.tar.gz" \
+          | sudo tar -xz -C /usr/local/bin helm-docs
+
+    - name: Regenerate chart READMEs
+      if: inputs.regenerate == 'true'
+      shell: bash
+      run: .github/scripts/regenerate-readmes.sh

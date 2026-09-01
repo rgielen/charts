@@ -31,14 +31,23 @@ request, but that check only runs on pull requests; a direct push to `main` bypa
 ```
 charts/<name>/          one chart; Chart.yaml, values.yaml, templates/, ci/, README.md
 ct.yaml                 chart-testing config (lint + install)
-.helm-docs.gotmpl       the single template all chart READMEs are generated from
+.helm-docs.gotmpl       the shared README skeleton; calls two per-chart hooks
 renovate.json           dependency updates for chart deps, images, and workflow actions
-.github/workflows/      lint-test.yaml (PR), release.yaml (main)
+.github/workflows/      lint-test.yaml (PR + workflow_call), release.yaml (main),
+                        upstream-sync.yaml (nightly image watch)
+.github/actions/        helm-docs (pinned install + regeneration)
+.github/scripts/        regenerate-readmes.sh, upstream_sync.py
 ```
 
-Chart `README.md` files are **generated**. Edit the comments in `values.yaml` or the
-shared `.helm-docs.gotmpl`, never the README itself — CI regenerates them and fails on a
-diff.
+Chart `README.md` files are **generated**. Edit the comments in `values.yaml`, the chart's
+own `README.md.gotmpl`, or the shared `.helm-docs.gotmpl` — never the README itself. CI
+regenerates them and fails on a diff.
+
+**Every chart must ship a `README.md.gotmpl`** defining `chart.aboutSection` and
+`chart.usageSection`. helm-docs concatenates all `--template-files` entries and appends its
+own built-in template as soon as one of them is missing for a chart, so a chart without the
+file renders a README with every section twice. `.github/scripts/regenerate-readmes.sh`
+fails on a missing file rather than let that reach a diff.
 
 ## Publishing
 
@@ -66,15 +75,32 @@ something appears broken:
 ```bash
 ct lint --config ct.yaml --all                 # all charts; omit --all for changed only
 helm template charts/<name>                    # render and inspect
-helm-docs --chart-search-root=charts --template-files="$PWD/.helm-docs.gotmpl"
+.github/scripts/regenerate-readmes.sh          # same script CI runs
 ```
 
-**The template path must be absolute.** `--template-files` is documented as relative to
-each chart directory, but helm-docs (1.14.2) refuses to resolve a path containing `..`:
-it logs `Did not find template file`, falls back to its built-in template, and exits 0.
-The result is a README that renders fine and is missing every custom section — a failure
-that looks like success. In CI the path comes from `$GITHUB_WORKSPACE`; locally, run the
-command from the repository root so `$PWD` is right.
+**The shared template path must be absolute.** `--template-files` is documented as relative
+to each chart directory, but helm-docs (1.14.2) refuses to resolve a path containing `..`:
+it logs `Did not find template file` and appends its built-in template instead, exiting 0.
+Run the script from the repository root; it builds the absolute path itself.
+
+`ct install` gets its backing services from `charts/<name>/ci/fixtures/`, which
+`lint-test.yaml` applies to the kind cluster beforehand and waits on via the
+`charts.rgielen.de/ci-fixture: "true"` label. Fixtures live in a fixed namespace and are
+addressed by cluster FQDN, because `ct` installs each release into a random namespace.
+
+## Upstream image tracking
+
+A chart whose `appVersion` follows a container image carries three `Chart.yaml`
+annotations (`charts.rgielen.de/upstream-image`, `-tag-pattern`, `-releases`).
+`upstream-sync.yaml` watches the image nightly, bumps `appVersion` **and** `version`
+together, regenerates the README, opens a pull request, and merges it unless the upstream
+bump was a major one. That coupled bump is precisely what Renovate cannot do, which is why
+`renovate.json` still forbids automerge for image updates.
+
+The workflow verifies its own pull request by *calling* `lint-test.yaml` through
+`workflow_call` rather than waiting for it: a pull request opened with `GITHUB_TOKEN` never
+triggers `pull_request` workflows, so waiting would wait forever. This keeps one
+implementation of lint and install, and needs no personal access token.
 
 ## Consumers
 

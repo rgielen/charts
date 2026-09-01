@@ -1,0 +1,46 @@
+# Exercises the paths `helm template` alone does not prove: a real PVC bound by
+# kind's local-path provisioner, an Ingress object, a separate encryption key,
+# and the extraEnv escape hatch.
+manifest:
+  database:
+    url: postgresql://manifest:manifest@postgres.manifest-llm-gateway-ci.svc.cluster.local:5432/manifest
+  auth:
+    secret: ci-only-session-secret-0123456789abcdef
+    encryptionKey: ci-only-encryption-key-fedcba9876543210
+  disableHsts: true
+  publicUrl: http://manifest.ci.example.com
+  proxy:
+    providerTimeoutMs: 60000
+    streamWarmupMs: 5000
+  throttle:
+    limit: 25
+  telemetry:
+    disabled: true
+
+persistence:
+  enabled: true
+  size: 1Gi
+
+ingress:
+  enabled: true
+  hosts:
+    - host: manifest.ci.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+serviceAccount:
+  create: true
+  annotations:
+    example.com/purpose: ci
+
+extraEnv:
+  - name: FRAME_ANCESTORS
+    value: "'self'"
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    memory: 1Gi

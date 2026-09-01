@@ -8,6 +8,10 @@ charts/*/charts/
 *.orig
 *.rej
 
+### Python (the workflow scripts under .github/scripts) ###
+__pycache__/
+*.pyc
+
 ### IntelliJ IDEA ###
 .idea
 *.iws

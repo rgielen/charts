@@ -1,0 +1,10 @@
+# Smallest configuration that actually boots: an external database and a session
+# secret. Both point at the throwaway values from ci/fixtures/ -- never reuse
+# them anywhere real.
+manifest:
+  database:
+    url: postgresql://manifest:manifest@postgres.manifest-llm-gateway-ci.svc.cluster.local:5432/manifest
+  auth:
+    secret: ci-only-session-secret-0123456789abcdef
+  # kind has no TLS in front of it, and the boot warning is noise in the logs.
+  disableHsts: true

@@ -1,0 +1,10 @@
+.DS_Store
+.git/
+.gitignore
+*.tmproj
+.idea/
+.vscode/
+# Test scenarios and their fixtures are for CI, not for consumers of the package.
+ci/
+# Generated from this template; only the rendered README belongs in the package.
+README.md.gotmpl

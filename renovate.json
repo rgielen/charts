@@ -12,9 +12,9 @@
   },
   "customManagers": [
     {
-      "description": "helm-docs is installed from a release tarball in the lint workflow, which the github-actions manager only reads for `uses:` lines. Without this the pinned version would silently rot.",
+      "description": "Tools installed from release tarballs in workflows and composite actions (helm-docs, crane), which the github-actions manager only reads for `uses:` lines. Without this the pinned versions would silently rot. Scoped to all of .github, not just workflows, because the helm-docs pin lives in a composite action.",
       "customType": "regex",
-      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "managerFilePatterns": ["/^\\.github/.+\\.ya?ml$/"],
       "matchStrings": ["#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*[A-Z_]+:\\s*[\"']?(?<currentValue>[^\\s\"']+)"],
       "versioningTemplate": "semver",
       "extractVersionTemplate": "^v(?<version>.*)$"

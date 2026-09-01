@@ -30,14 +30,62 @@ charts/<name>/
 ├── values.yaml           # every key commented -- the comments are the documentation
 ├── values.schema.json    # optional, but it turns typos into errors at install time
 ├── templates/
+├── README.md.gotmpl      # required -- the chart's own prose, see below
 ├── README.md             # generated, never edited by hand
 └── ci/
-    └── default-values.yaml   # one file per scenario the install test should cover
+    ├── default-values.yaml   # one file per scenario the install test should cover
+    └── fixtures/             # optional, applied to the cluster before ct install
 ```
 
 Anything under `ci/` is picked up by `ct install`: each `*-values.yaml` there becomes a
 separate install against a throwaway kind cluster. A chart with no `ci/` directory is
 installed once with its defaults.
+
+### `README.md.gotmpl` is mandatory
+
+The shared `.helm-docs.gotmpl` provides the skeleton and calls two hooks the chart has to
+define — even if one of them is left empty:
+
+```gotemplate
+{{ define "chart.aboutSection" }}
+What this packages, and how it differs from the upstream deployment.
+{{ end }}
+
+{{ define "chart.usageSection" }}
+Setup, secrets, upgrades -- whatever the values table cannot say.
+{{ end }}
+```
+
+This is not optional styling. helm-docs concatenates every `--template-files` entry and
+appends its own built-in template as soon as one of them is missing for a chart, so a chart
+without `README.md.gotmpl` gets a README containing every section twice. The
+`helm-docs` composite action fails the build rather than let that reach a diff.
+
+### `ci/fixtures/`
+
+A chart that needs a backing service to come up — a database, say — ships throwaway
+manifests here. `lint-test.yaml` applies them before `ct install` and waits for every
+Deployment labelled `charts.rgielen.de/ci-fixture: "true"` to report Available. Put them in
+a fixed namespace and address them from `ci/*-values.yaml` by their cluster FQDN: `ct`
+installs each release into a random namespace of its own.
+
+### Tracking an upstream image
+
+A chart whose `appVersion` follows a container image opts into automatic updates with three
+annotations in `Chart.yaml`:
+
+```yaml
+annotations:
+  charts.rgielen.de/upstream-image: docker.io/example/app
+  charts.rgielen.de/upstream-tag-pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+  charts.rgielen.de/upstream-releases: https://github.com/example/app/releases/tag/v{version}
+```
+
+`.github/workflows/upstream-sync.yaml` then watches the image nightly and opens a pull
+request that bumps `appVersion` and the chart `version` together, regenerates the README,
+runs the full lint and install suite, and merges itself unless the upstream bump was a
+major one. The tag pattern is what keeps `latest`, floating majors and cosign `*.sig` tags
+out of the comparison.
 
 ## Before opening a pull request
 
@@ -49,8 +97,8 @@ ct lint --config ct.yaml --all
 helm template charts/<name>
 
 # Regenerate the chart READMEs -- CI fails if these are stale.
-# Run from the repository root; the template path must be absolute (see CLAUDE.md).
-helm-docs --chart-search-root=charts --template-files="$PWD/.helm-docs.gotmpl"
+# Run from the repository root; this is the same script CI uses.
+.github/scripts/regenerate-readmes.sh
 ```
 
 `ct` and `helm-docs` come from

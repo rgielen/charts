@@ -1,0 +1,37 @@
+apiVersion: v2
+name: manifest-llm-gateway
+description: Manifest, the self-hosted LLM gateway, proxy and dashboard.
+type: application
+
+# The chart's own version. Bumped on every change to this directory.
+version: 0.1.0
+# The packaged upstream version. Quoted so a two-segment tag stays a string.
+appVersion: "6.19.1"
+
+keywords:
+  - llm
+  - gateway
+  - proxy
+  - openai
+  - anthropic
+  - ollama
+  - ai
+
+home: https://manifest.build
+icon: https://manifest.build/favicon.ico
+sources:
+  - https://github.com/mnfst/manifest
+  - https://github.com/rgielen/charts
+
+maintainers:
+  - name: rgielen
+    url: https://github.com/rgielen
+
+annotations:
+  # Read by .github/workflows/upstream-sync.yaml. It watches the image for new
+  # tags matching the pattern and opens a pull request that bumps appVersion and
+  # this chart's version together -- the bump Renovate cannot do on its own.
+  charts.rgielen.de/upstream-image: docker.io/manifestdotbuild/manifest
+  # Keeps `latest`, `6`, `6.19`, `sha-<commit>` and the `*.sig` cosign tags out.
+  charts.rgielen.de/upstream-tag-pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
+  charts.rgielen.de/upstream-releases: https://github.com/mnfst/manifest/releases/tag/v{version}

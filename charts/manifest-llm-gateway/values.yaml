@@ -1,0 +1,531 @@
+# Every key below carries a comment, and those comments are the published
+# documentation. Where a key maps onto an upstream environment variable, the
+# comment names it -- the upstream reference is
+# https://github.com/mnfst/manifest/blob/main/docker/.env.example
+#
+# Values left empty are not passed to the container at all. That is deliberate:
+# the application reads several settings as `Number(env ?? default)`, so an
+# empty string would become 0 rather than the documented default.
+
+# -- Image to deploy. The upstream publishes linux/amd64 and linux/arm64.
+# @section -- Image
+image:
+  # -- Image repository.
+  # @section -- Image
+  repository: manifestdotbuild/manifest
+  # -- Image tag.
+  # @default -- the chart's `appVersion`
+  # @section -- Image
+  tag: ""
+  # -- Image pull policy.
+  # @section -- Image
+  pullPolicy: IfNotPresent
+
+# -- Secrets used to pull the image from a private registry.
+# @section -- Image
+imagePullSecrets: []
+
+# -- Overrides the chart name used in resource names.
+# @section -- Workload
+nameOverride: ""
+
+# -- Overrides the full name of the generated resources.
+# @section -- Workload
+fullnameOverride: ""
+
+# -- Number of application replicas. More than one needs
+# `manifest.runMigrationsOnBoot: false` on all but one instance and S3-backed
+# request recordings — see the chart README.
+# @section -- Workload
+replicaCount: 1
+
+# -- Deployment update strategy. `Recreate` because the default request
+# recording volume is ReadWriteOnce, which a rolling update cannot share.
+# @section -- Workload
+updateStrategy:
+  type: Recreate
+
+# -- Grace period for the pod to finish in-flight requests. Keep this above
+# `manifest.shutdownDrainMs` (which is milliseconds), or the kubelet kills the
+# process mid-drain.
+# @section -- Workload
+terminationGracePeriodSeconds: 30
+
+# -- Resource requests and limits. No CPU limit on purpose: CFS throttling on a
+# streaming proxy shows up directly as a worse time-to-first-token. The memory
+# limit mirrors the `mem_limit: 1g` of the upstream compose file.
+# @section -- Workload
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
+
+# -- Size of the in-memory `/tmp` volume. The container runs with a read-only
+# root filesystem, so `/tmp` has to be mounted separately.
+# @section -- Workload
+tmpDir:
+  sizeLimit: 64Mi
+
+# -- Service account used by the pod.
+# @section -- Workload
+serviceAccount:
+  # -- Create a dedicated service account.
+  # @section -- Workload
+  create: true
+  # -- Annotations for the service account.
+  # @section -- Workload
+  annotations: {}
+  # -- Name of the service account. Generated from the release name when empty.
+  # @section -- Workload
+  name: ""
+  # -- Mount the service account token. The application never calls the
+  # Kubernetes API, so this stays off.
+  # @section -- Workload
+  automountServiceAccountToken: false
+
+# -- Extra annotations for the pod.
+# @section -- Workload
+podAnnotations: {}
+
+# -- Extra labels for the pod.
+# @section -- Workload
+podLabels: {}
+
+# -- Pod-level security context. UID/GID 65532 is the user the upstream image
+# already runs as.
+# @section -- Workload
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container-level security context. Mirrors the `read_only`, `cap_drop: ALL`
+# and `no-new-privileges` hardening of the upstream compose file. The compose
+# file's `pids_limit: 512` has no pod-level equivalent in Kubernetes and is
+# configured on the node instead.
+# @section -- Workload
+containerSecurityContext:
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# -- Node selector for pod assignment.
+# @section -- Workload
+nodeSelector: {}
+
+# -- Tolerations for pod assignment.
+# @section -- Workload
+tolerations: []
+
+# -- Affinity rules for pod assignment.
+# @section -- Workload
+affinity: {}
+
+# -- Topology spread constraints for pod assignment.
+# @section -- Workload
+topologySpreadConstraints: []
+
+# -- Priority class for the pod.
+# @section -- Workload
+priorityClassName: ""
+
+# -- Startup probe. Generous by design: a cold start runs database migrations
+# and warms the pricing cache, which the upstream compose file gives 90 seconds.
+# @section -- Workload
+startupProbe:
+  httpGet:
+    path: /api/v1/health
+    port: http
+  periodSeconds: 5
+  failureThreshold: 36
+
+# -- Readiness probe. The health endpoint answers 503 while the process drains
+# on SIGTERM, which takes the pod out of the Service before it stops.
+# @section -- Workload
+readinessProbe:
+  httpGet:
+    path: /api/v1/health
+    port: http
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# -- Liveness probe.
+# @section -- Workload
+livenessProbe:
+  httpGet:
+    path: /api/v1/health
+    port: http
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# -- Service in front of the pods.
+# @section -- Networking
+service:
+  # -- Service type.
+  # @section -- Networking
+  type: ClusterIP
+  # -- Service port.
+  # @section -- Networking
+  port: 2099
+  # -- Annotations for the service.
+  # @section -- Networking
+  annotations: {}
+
+# -- Ingress for the dashboard and the gateway API. Both live on the same port
+# and the same host.
+# @section -- Networking
+ingress:
+  # -- Create an Ingress.
+  # @section -- Networking
+  enabled: false
+  # -- Ingress class name.
+  # @section -- Networking
+  className: ""
+  # -- Annotations for the Ingress. Streaming responses need a generous read
+  # timeout on the controller; the values differ per controller.
+  # @section -- Networking
+  annotations: {}
+  # -- Hosts to serve. Each entry takes `host` and a list of `paths`
+  # (`path`, `pathType`).
+  # @section -- Networking
+  hosts: []
+  # -- TLS configuration, passed through unchanged.
+  # @section -- Networking
+  tls: []
+
+# -- Gateway API route, as an alternative to `ingress`. Requires the
+# `gateway.networking.k8s.io/v1` CRDs in the cluster.
+# @section -- Networking
+httpRoute:
+  # -- Create an HTTPRoute.
+  # @section -- Networking
+  enabled: false
+  # -- Annotations for the HTTPRoute.
+  # @section -- Networking
+  annotations: {}
+  # -- Gateways to attach to. Each entry is a `parentRef` and is passed through
+  # unchanged (`name`, and optionally `namespace`, `sectionName`, `port`).
+  # @section -- Networking
+  parentRefs: []
+  # -- Hostnames to match.
+  # @section -- Networking
+  hostnames: []
+  # -- Rule matches. The default sends everything below `/` to the service.
+  # @section -- Networking
+  matches:
+    - path:
+        type: PathPrefix
+        value: /
+
+# -- Persistent volume for locally stored request recordings, mounted at
+# `manifest.recordings.filesystemPath`. Not needed when recordings go to S3, and
+# not needed at all if you do not record message bodies.
+# @section -- Persistence
+persistence:
+  # -- Create and mount a PersistentVolumeClaim.
+  # @section -- Persistence
+  enabled: false
+  # -- Use an existing claim instead of creating one.
+  # @section -- Persistence
+  existingClaim: ""
+  # -- Storage class. Empty uses the cluster default.
+  # @section -- Persistence
+  storageClass: ""
+  # -- Access modes for the created claim.
+  # @section -- Persistence
+  accessModes:
+    - ReadWriteOnce
+  # -- Size of the created claim.
+  # @section -- Persistence
+  size: 5Gi
+  # -- Annotations for the created claim.
+  # @section -- Persistence
+  annotations: {}
+
+manifest:
+  # -- Port the application listens on (`PORT`).
+  # @section -- Manifest: core
+  port: 2099
+
+  # -- Public URL the dashboard is reached at (`BETTER_AUTH_URL`). Must match
+  # what the browser actually uses, or logins and OAuth callbacks break. Serve
+  # it over https wherever it is reachable from the internet: the application
+  # only sends HSTS for an `https://` origin.
+  # @default -- derived from the first `ingress.hosts` entry when an Ingress is enabled
+  # @section -- Manifest: core
+  publicUrl: ""
+
+  # -- Deployment mode (`MANIFEST_MODE`). `selfhosted` relaxes the SSRF rules so
+  # private and plain-http provider URLs are allowed. Set explicitly rather than
+  # left to auto-detection, exactly as the upstream compose file does.
+  # @section -- Manifest: core
+  mode: selfhosted
+
+  # -- Silence the boot warning about the missing HSTS header on a plain-http
+  # deployment (`MANIFEST_DISABLE_HSTS`). Prefer a real `https://` `publicUrl`
+  # anywhere reachable from the internet.
+  # @section -- Manifest: core
+  disableHsts: false
+
+  # -- Extra browser origins allowed to call the gateway
+  # (`WINGMAN_CORS_ORIGINS`). Joined with commas.
+  # @section -- Manifest: core
+  corsOrigins: []
+
+  # -- Name of an existing Secret holding sensitive settings. Its keys are the
+  # upstream environment variable names (`BETTER_AUTH_SECRET`, `DATABASE_URL`,
+  # `EMAIL_API_KEY`, ...) and it is mounted with `envFrom`. Takes precedence
+  # over the plain values below, which makes it the right choice for GitOps:
+  # keep the Secret in sealed-secrets or external-secrets and leave the values
+  # here empty.
+  # @section -- Manifest: core
+  existingSecret: ""
+
+  auth:
+    # -- Session signing secret (`BETTER_AUTH_SECRET`), at least 32 characters.
+    # Generate with `openssl rand -hex 32`. Required unless `existingSecret`
+    # provides it — the chart refuses to render without one. It is never
+    # generated for you: this chart is meant to be rendered by ArgoCD, where
+    # `lookup` returns nothing and a generated value would be different on every
+    # sync, taking every stored provider credential with it.
+    # @section -- Manifest: core
+    secret: ""
+    # -- Separate at-rest encryption key for stored provider API keys and OAuth
+    # tokens (`MANIFEST_ENCRYPTION_KEY`). Falls back to `auth.secret` when
+    # empty, which means one leaked session cookie secret also decrypts every
+    # stored provider credential. Set a second, independent 32+ character value.
+    # **Changing this makes existing stored credentials unreadable.**
+    # @section -- Manifest: core
+    encryptionKey: ""
+
+  # -- Optional key for programmatic access through the `X-API-Key` header
+  # (`API_KEY`). The dashboard uses cookie sessions and agents use their own
+  # `mnfst_*` keys, so this is only needed for scripting the admin API.
+  # @section -- Manifest: core
+  apiKey: ""
+
+  database:
+    # -- PostgreSQL connection string (`DATABASE_URL`), for example
+    # `postgresql://manifest:secret@postgres.databases.svc:5432/manifest`.
+    # Required unless `existingSecret` provides it. Special characters in the
+    # password must be percent-encoded. This chart does not deploy a database;
+    # migrations are applied by the application on boot.
+    # @section -- Manifest: database
+    url: ""
+    # -- Size of the application's connection pool (`DB_POOL_MAX`).
+    # @section -- Manifest: database
+    poolMax: 10
+    # -- Size of the separate pool Better Auth opens (`AUTH_DB_POOL_MAX`).
+    # @section -- Manifest: database
+    authPoolMax: 5
+    # -- Statements applied to each new session (`DB_TUNE_SESSION`).
+    # @section -- Manifest: database
+    tuneSession: ""
+
+  proxy:
+    # -- Per-attempt timeout in ms for upstream provider requests
+    # (`PROVIDER_TIMEOUT_MS`). Keep it below your client's timeout so the
+    # fallback chain still has room to run.
+    # @section -- Manifest: LLM proxy
+    providerTimeoutMs: 180000
+    # -- Time in ms to wait for the first chunk of a streaming response before
+    # treating it as stalled and failing over (`STREAM_WARMUP_MS`).
+    # @section -- Manifest: LLM proxy
+    streamWarmupMs: 15000
+    # -- Time in ms to wait for deliverable text or tool output from ChatGPT
+    # Codex (`CODEX_SEMANTIC_OUTPUT_TIMEOUT_MS`).
+    # @section -- Manifest: LLM proxy
+    codexSemanticOutputTimeoutMs: 60000
+    # -- Per-tenant limit of concurrent in-flight requests per backend process
+    # (`MANIFEST_CONCURRENCY_MAX`).
+    # @section -- Manifest: LLM proxy
+    concurrencyMax: 10
+
+  # -- Base URL of a locally reachable Ollama or other OpenAI-compatible server
+  # (`OLLAMA_HOST`), for example `http://ollama.ai.svc.cluster.local:11434`.
+  # Empty by default rather than the compose file's `host.docker.internal`,
+  # which does not exist in Kubernetes.
+  # @section -- Manifest: LLM proxy
+  ollamaHost: ""
+
+  credits:
+    # -- Base URL of the managed free-provider service (`CREDITS_BASE_URL`).
+    # @section -- Manifest: LLM proxy
+    baseUrl: ""
+    # -- Master key enabling automatic virtual-key provisioning
+    # (`CREDITS_MASTER_KEY`).
+    # @section -- Manifest: LLM proxy
+    masterKey: ""
+    # -- User e-mail addresses allowed to auto-provision, joined with commas
+    # (`CREDITS_AUTO_PROVISION_ALLOWLIST`).
+    # @section -- Manifest: LLM proxy
+    autoProvisionAllowlist: []
+    # -- Budget in USD for each generated key (`CREDITS_GEMINI_FREE_MAX_BUDGET`).
+    # @section -- Manifest: LLM proxy
+    geminiFreeMaxBudget: ""
+
+  recordings:
+    # -- Where message bodies are stored (`REQUEST_RECORDING_STORAGE`): `auto`
+    # picks S3 when a complete S3 configuration is present and the local volume
+    # otherwise. Metadata always lives in the database; only the bodies are
+    # affected by this.
+    # @section -- Manifest: request recordings
+    storage: auto
+    # -- Mount path for locally stored recordings
+    # (`REQUEST_RECORDING_FILESYSTEM_PATH`). Backed by `persistence` above.
+    # @section -- Manifest: request recordings
+    filesystemPath: /data/request-recordings
+    # -- Retention in days (`REQUEST_RECORDING_RETENTION_DAYS`). The application
+    # defaults to 365 for self-hosted installations.
+    # @section -- Manifest: request recordings
+    retentionDays: ""
+    s3:
+      # -- Bucket name (`REQUEST_RECORDING_S3_BUCKET`).
+      # @section -- Manifest: request recordings
+      bucket: ""
+      # -- Endpoint for S3-compatible storage (`REQUEST_RECORDING_S3_ENDPOINT`).
+      # @section -- Manifest: request recordings
+      endpoint: ""
+      # -- Region (`REQUEST_RECORDING_S3_REGION`).
+      # @section -- Manifest: request recordings
+      region: ""
+      # -- Use path-style addressing (`REQUEST_RECORDING_S3_FORCE_PATH_STYLE`).
+      # Needed by MinIO and most other S3-compatible backends.
+      # @section -- Manifest: request recordings
+      forcePathStyle: false
+      # -- Access key ID (`REQUEST_RECORDING_S3_ACCESS_KEY_ID`).
+      # @section -- Manifest: request recordings
+      accessKeyId: ""
+      # -- Secret access key (`REQUEST_RECORDING_S3_SECRET_ACCESS_KEY`).
+      # @section -- Manifest: request recordings
+      secretAccessKey: ""
+
+  email:
+    # -- E-mail provider (`EMAIL_PROVIDER`): `resend`, `mailgun` or `sendgrid`.
+    # Without one, signup verification is waived, password reset silently does
+    # nothing, and threshold alerts only work where a user configured a provider
+    # in the dashboard.
+    # @section -- Manifest: email and OAuth
+    provider: ""
+    # -- API key for the provider (`EMAIL_API_KEY`).
+    # @section -- Manifest: email and OAuth
+    apiKey: ""
+    # -- Verified sending domain (`EMAIL_DOMAIN`). Mailgun only.
+    # @section -- Manifest: email and OAuth
+    domain: ""
+    # -- Sender address (`EMAIL_FROM`).
+    # @section -- Manifest: email and OAuth
+    from: ""
+
+  # -- OAuth logins. A provider activates as soon as both its client ID and
+  # secret are set. Register the callback as
+  # `<publicUrl>/api/auth/callback/<provider>`.
+  # @section -- Manifest: email and OAuth
+  oauth:
+    google:
+      # -- `GOOGLE_CLIENT_ID`
+      # @section -- Manifest: email and OAuth
+      clientId: ""
+      # -- `GOOGLE_CLIENT_SECRET`
+      # @section -- Manifest: email and OAuth
+      clientSecret: ""
+    github:
+      # -- `GITHUB_CLIENT_ID`
+      # @section -- Manifest: email and OAuth
+      clientId: ""
+      # -- `GITHUB_CLIENT_SECRET`
+      # @section -- Manifest: email and OAuth
+      clientSecret: ""
+    discord:
+      # -- `DISCORD_CLIENT_ID`
+      # @section -- Manifest: email and OAuth
+      clientId: ""
+      # -- `DISCORD_CLIENT_SECRET`
+      # @section -- Manifest: email and OAuth
+      clientSecret: ""
+
+  # -- Overrides for the OAuth clients Manifest uses to talk to LLM providers on
+  # a user's behalf. Only needed if you registered your own apps instead of
+  # using the ones shipped with Manifest.
+  # @section -- Manifest: email and OAuth
+  providerOauth:
+    # -- `OPENAI_OAUTH_CLIENT_ID`
+    # @section -- Manifest: email and OAuth
+    openaiClientId: ""
+    # -- `MINIMAX_OAUTH_CLIENT_ID`
+    # @section -- Manifest: email and OAuth
+    minimaxClientId: ""
+
+  throttle:
+    # -- Rate limit window in ms (`THROTTLE_TTL`).
+    # @section -- Manifest: operations
+    ttl: 60000
+    # -- Maximum requests per window per client (`THROTTLE_LIMIT`).
+    # @section -- Manifest: operations
+    limit: 100
+
+  # -- Run database migrations on boot (`RUN_MIGRATIONS_ON_BOOT`). With more
+  # than one replica, exactly one of them should do this.
+  # @section -- Manifest: operations
+  runMigrationsOnBoot: true
+
+  # -- Grace period in ms to finish in-flight requests after SIGTERM
+  # (`SHUTDOWN_DRAIN_MS`). Keep `terminationGracePeriodSeconds` above it.
+  # @section -- Manifest: operations
+  shutdownDrainMs: 10000
+
+  sentry:
+    # -- Sentry DSN (`SENTRY_DSN`). Sentry stays completely uninitialised while
+    # this is empty. Error capture only — no tracing, request bodies, headers or
+    # user data.
+    # @section -- Manifest: observability
+    dsn: ""
+    # -- Environment tag (`SENTRY_ENVIRONMENT`).
+    # @section -- Manifest: observability
+    environment: ""
+    # -- Release tag (`SENTRY_RELEASE`).
+    # @section -- Manifest: observability
+    release: ""
+
+  telemetry:
+    # -- Disable the anonymous usage report the upstream sends once per 24h
+    # (`MANIFEST_TELEMETRY_DISABLED`). Aggregates only: no prompts, no message
+    # contents, no API keys.
+    # @section -- Manifest: observability
+    disabled: false
+    # -- Send the report to your own collector instead (`TELEMETRY_ENDPOINT`).
+    # @section -- Manifest: observability
+    endpoint: ""
+
+# -- Extra environment variables, in Kubernetes `env` form. Applied last, so
+# they override everything the chart sets — the escape hatch for upstream
+# settings this chart does not model, such as `FRAME_ANCESTORS`.
+# @section -- Extensibility
+extraEnv: []
+
+# -- Extra `envFrom` sources, applied after the chart's own ConfigMap and
+# Secret but before `extraEnv`.
+# @section -- Extensibility
+extraEnvFrom: []
+
+# -- Extra volumes for the pod.
+# @section -- Extensibility
+extraVolumes: []
+
+# -- Extra volume mounts for the container.
+# @section -- Extensibility
+extraVolumeMounts: []
+
+# -- Extra manifests to render alongside the chart. Each entry is a full
+# Kubernetes object and is passed through `tpl`.
+# @section -- Extensibility
+extraObjects: []

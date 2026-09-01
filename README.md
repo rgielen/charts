@@ -11,12 +11,16 @@ clusters.
 
 ## Available charts
 
-| Chart | Description | Version |
-| ----- | ----------- | ------- |
-| _none yet_ | | |
+| Chart | Description |
+| ----- | ----------- |
+| [manifest-llm-gateway](charts/manifest-llm-gateway) | [Manifest](https://manifest.build), the self-hosted LLM gateway, proxy and dashboard |
 
-Every released version is also a [GitHub release](https://github.com/rgielen/charts/releases)
-with the packaged `.tgz` attached.
+No version column on purpose: charts are released independently and often
+automatically, and nothing here would keep a hand-written number honest. Each
+chart's README carries its current version as a badge, `helm search repo rgielen`
+lists what is published, and every released version is also a
+[GitHub release](https://github.com/rgielen/charts/releases) with the packaged
+`.tgz` attached.
 
 ## Installation
 

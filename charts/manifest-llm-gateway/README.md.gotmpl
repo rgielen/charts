@@ -1,0 +1,231 @@
+{{ define "chart.aboutSection" }}
+[Manifest](https://manifest.build) is a self-hosted gateway in front of the LLM providers
+you already pay for. It gives you one OpenAI-compatible endpoint, a dashboard for keys,
+routing and fallbacks, and a record of what was actually sent and returned.
+
+This chart follows the upstream Docker Compose deployment
+([`docker/docker-compose.yml`](https://github.com/mnfst/manifest/blob/main/docker/docker-compose.yml),
+[`docker/.env.example`](https://github.com/mnfst/manifest/blob/main/docker/.env.example))
+closely enough that a Compose install maps onto it one setting at a time — see the
+[environment variable mapping](#environment-variable-mapping) below. It carries over the
+same container hardening: a read-only root filesystem, all capabilities dropped, no
+privilege escalation, an in-memory `/tmp`, and the same 1 GiB memory ceiling.
+
+Two things are deliberately different from Compose:
+
+- **The chart does not deploy PostgreSQL.** `manifest.database.url` points at a database
+  you run — an operator such as CloudNativePG, a managed instance, or a plain StatefulSet.
+  A bundled single-replica database is a worse deal in Kubernetes than in Compose: it hides
+  the backup and the major-version upgrade, which are the two things you actually need to
+  own. Migrations still run by themselves when the application boots.
+- **The chart never generates secrets.** See [Secrets](#secrets).
+
+Not included, on purpose: no NetworkPolicy (a gateway needs egress to every provider on
+the internet, so the policy would be decorative), no PodDisruptionBudget and no
+HorizontalPodAutoscaler (the default is a single replica, and scaling out has real
+prerequisites — see [Running more than one replica](#running-more-than-one-replica)). The
+Compose file's `pids_limit: 512` has no pod-level equivalent and is a node setting in
+Kubernetes.
+{{ end }}
+
+{{ define "chart.usageSection" }}
+## Quick start
+
+Generate two independent secrets and hand them to the chart out of band:
+
+```bash
+kubectl create namespace manifest
+
+kubectl --namespace manifest create secret generic manifest-llm-gateway \
+  --from-literal=BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
+  --from-literal=MANIFEST_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --from-literal=DATABASE_URL='postgresql://manifest:...@postgres.databases.svc:5432/manifest'
+
+helm --namespace manifest install manifest rgielen/manifest-llm-gateway \
+  --set manifest.existingSecret=manifest-llm-gateway \
+  --set manifest.publicUrl=https://manifest.example.com \
+  --set ingress.enabled=true \
+  --set ingress.hosts[0].host=manifest.example.com \
+  --set ingress.hosts[0].paths[0].path=/ \
+  --set ingress.hosts[0].paths[0].pathType=Prefix
+```
+
+On first boot the setup wizard at `/setup` creates the admin account — there are no
+default credentials. Add a provider, copy the generated harness key (it starts with
+`mnfst_`), and point any OpenAI-compatible client at `https://manifest.example.com/v1`.
+
+## Secrets
+
+Sensitive settings can be given two ways:
+
+- `manifest.existingSecret` — the name of a Secret whose **keys are the upstream
+  environment variable names** (`BETTER_AUTH_SECRET`, `MANIFEST_ENCRYPTION_KEY`,
+  `DATABASE_URL`, `EMAIL_API_KEY`, `GOOGLE_CLIENT_SECRET`, …). It is mounted with
+  `envFrom` and wins over anything set in values. This is the right choice for GitOps:
+  keep the Secret in sealed-secrets or external-secrets and leave the values empty.
+- Plain values (`manifest.auth.secret`, `manifest.database.url`, …) — the chart renders
+  them into a Secret of its own. Convenient for a quick `helm install`, but they end up in
+  your values file.
+
+Set at least one of them. Without a session secret or a database URL the chart refuses to
+render, with a message naming both ways out.
+
+**The chart never generates a secret for you, and that is not an oversight.**
+`MANIFEST_ENCRYPTION_KEY` — or `BETTER_AUTH_SECRET`, which it falls back to — encrypts
+every stored provider API key and OAuth token at rest. ArgoCD renders charts with
+`helm template` and no cluster access, where Helm's `lookup` returns nothing: a generated
+value would come out different on every single sync, and every stored credential would
+become undecryptable. The same reasoning applies to changing the key later — treat it as
+permanent once credentials are stored.
+
+Set `manifest.auth.encryptionKey` to a *second, independent* value rather than letting it
+fall back. Otherwise one leaked session-signing secret also decrypts every provider
+credential you have stored.
+
+## Reverse proxy and `publicUrl`
+
+`manifest.publicUrl` becomes `BETTER_AUTH_URL` and must match the URL the browser actually
+uses, or logins and OAuth callbacks fail in ways that look like unrelated bugs. When an
+Ingress is enabled and `publicUrl` is empty, the chart derives it from the first Ingress
+host, using `https` if that host appears in `ingress.tls`.
+
+Serve it over HTTPS anywhere reachable from the internet: the application only sends HSTS
+for an `https://` origin and logs a warning on every boot otherwise. On an HTTP-only LAN
+install, set `manifest.disableHsts=true` to silence that warning.
+
+Streaming responses need a generous read timeout on the ingress controller. The annotation
+differs per controller — for ingress-nginx it is
+`nginx.ingress.kubernetes.io/proxy-read-timeout`, for Traefik it is a `ServersTransport`.
+
+## Database
+
+`manifest.database.url` is a standard PostgreSQL connection string. Percent-encode special
+characters in the password (`@` → `%40`, `:` → `%3A`, `/` → `%2F`). The application applies
+its own migrations on boot, so there is no migration Job or Helm hook to run.
+
+Back up the database, not the cluster: it holds accounts, provider credentials, harness
+keys and request metadata.
+
+## Request recordings
+
+Message *metadata* always lives in the database. Recorded message *bodies* are separate and
+optional, and go to one of two places:
+
+- **A volume**, mounted at `manifest.recordings.filesystemPath`. Set `persistence.enabled`
+  to back it with a PersistentVolumeClaim. Without it the mount is an `emptyDir` and the
+  bodies are gone on every restart — the mount itself is always present because the root
+  filesystem is read-only.
+- **S3-compatible storage**, via `manifest.recordings.s3`. A complete S3 configuration
+  takes precedence over the volume while `manifest.recordings.storage` is `auto`.
+
+Retention defaults to 365 days upstream; override with
+`manifest.recordings.retentionDays`.
+
+## Running more than one replica
+
+The default is a single replica, and raising it has two prerequisites:
+
+1. **Migrations.** Every replica runs them on boot. Set
+   `manifest.runMigrationsOnBoot: false` and let one instance — or a one-off run before the
+   rollout — apply them.
+2. **Recordings.** A ReadWriteOnce volume cannot be shared. Use
+   `manifest.recordings.s3` instead of `persistence`.
+
+`manifest.proxy.concurrencyMax` is a per-tenant limit *per backend process*, so the
+effective ceiling multiplies with the replica count.
+
+The chart warns about both cases in its install notes.
+
+## Upgrading
+
+Chart `version` and `appVersion` move independently, and both appear in every release. New
+upstream releases are picked up automatically: a scheduled workflow in this repository
+watches the image, bumps `appVersion` and the chart `version` together, and opens a pull
+request that merges itself once the chart still lints and installs.
+
+Because a rollout restarts the single pod, an upgrade is a short outage on a single-node
+cluster. Migrations run on boot; take a database backup first for anything that changes the
+upstream major version.
+
+## Use from ArgoCD
+
+Always pin `targetRevision` to an explicit chart version:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: manifest
+  namespace: argocd
+spec:
+  project: infrastructure
+  source:
+    repoURL: https://rgielen.github.io/charts
+    chart: manifest-llm-gateway
+    targetRevision: {{ template "chart.version" . }}
+    helm:
+      valuesObject:
+        manifest:
+          existingSecret: manifest-llm-gateway
+          publicUrl: https://manifest.example.com
+        ingress:
+          enabled: true
+          hosts:
+            - host: manifest.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: manifest
+```
+
+## Environment variable mapping
+
+Every setting from the upstream `.env.example`, and where it lives here. Values marked
+*secret* belong in `manifest.existingSecret` under exactly the environment variable name
+in the left column.
+
+| Environment variable | Value |
+| -------------------- | ----- |
+| `BETTER_AUTH_SECRET` | `manifest.auth.secret` *(secret)* |
+| `MANIFEST_ENCRYPTION_KEY` | `manifest.auth.encryptionKey` *(secret)* |
+| `PORT` | `manifest.port` |
+| `HOST_BIND_ADDRESS`, `HOST_PORT` | not applicable — use `service` and `ingress` |
+| `BETTER_AUTH_URL` | `manifest.publicUrl` |
+| `MANIFEST_VERSION` | `image.tag`, defaulting to the chart's `appVersion` |
+| `MANIFEST_MODE` | `manifest.mode` |
+| `DATABASE_URL` | `manifest.database.url` *(secret)* |
+| `POSTGRES_PASSWORD` | not applicable — the database is external |
+| `DB_POOL_MAX`, `AUTH_DB_POOL_MAX`, `DB_TUNE_SESSION` | `manifest.database.poolMax`, `.authPoolMax`, `.tuneSession` |
+| `RUN_MIGRATIONS_ON_BOOT` | `manifest.runMigrationsOnBoot` |
+| `REQUEST_RECORDING_STORAGE` | `manifest.recordings.storage` |
+| `REQUEST_RECORDING_FILESYSTEM_PATH` | `manifest.recordings.filesystemPath` |
+| `REQUEST_RECORDING_RETENTION_DAYS` | `manifest.recordings.retentionDays` |
+| `REQUEST_RECORDING_S3_BUCKET`, `_ENDPOINT`, `_REGION`, `_FORCE_PATH_STYLE` | `manifest.recordings.s3.bucket`, `.endpoint`, `.region`, `.forcePathStyle` |
+| `REQUEST_RECORDING_S3_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY` | `manifest.recordings.s3.accessKeyId`, `.secretAccessKey` *(secret)* |
+| `PROVIDER_TIMEOUT_MS`, `STREAM_WARMUP_MS`, `CODEX_SEMANTIC_OUTPUT_TIMEOUT_MS` | `manifest.proxy.providerTimeoutMs`, `.streamWarmupMs`, `.codexSemanticOutputTimeoutMs` |
+| `MANIFEST_CONCURRENCY_MAX` | `manifest.proxy.concurrencyMax` |
+| `OLLAMA_HOST` | `manifest.ollamaHost` |
+| `CREDITS_BASE_URL`, `CREDITS_AUTO_PROVISION_ALLOWLIST`, `CREDITS_GEMINI_FREE_MAX_BUDGET` | `manifest.credits.baseUrl`, `.autoProvisionAllowlist`, `.geminiFreeMaxBudget` |
+| `CREDITS_MASTER_KEY` | `manifest.credits.masterKey` *(secret)* |
+| `EMAIL_PROVIDER`, `EMAIL_DOMAIN`, `EMAIL_FROM` | `manifest.email.provider`, `.domain`, `.from` |
+| `EMAIL_API_KEY` | `manifest.email.apiKey` *(secret)* |
+| `GOOGLE_CLIENT_ID`, `GITHUB_CLIENT_ID`, `DISCORD_CLIENT_ID` | `manifest.oauth.<provider>.clientId` |
+| `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_SECRET`, `DISCORD_CLIENT_SECRET` | `manifest.oauth.<provider>.clientSecret` *(secret)* |
+| `OPENAI_OAUTH_CLIENT_ID`, `MINIMAX_OAUTH_CLIENT_ID` | `manifest.providerOauth.openaiClientId`, `.minimaxClientId` |
+| `API_KEY` | `manifest.apiKey` *(secret)* |
+| `MANIFEST_DISABLE_HSTS` | `manifest.disableHsts` |
+| `WINGMAN_CORS_ORIGINS` | `manifest.corsOrigins` (a list; joined with commas) |
+| `THROTTLE_TTL`, `THROTTLE_LIMIT` | `manifest.throttle.ttl`, `.limit` |
+| `SHUTDOWN_DRAIN_MS` | `manifest.shutdownDrainMs` |
+| `SENTRY_DSN` | `manifest.sentry.dsn` *(secret)* |
+| `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE` | `manifest.sentry.environment`, `.release` |
+| `MANIFEST_TELEMETRY_DISABLED`, `TELEMETRY_ENDPOINT` | `manifest.telemetry.disabled`, `.endpoint` |
+| `SEED_DATA`, `NODE_ENV` | fixed, as in the upstream compose file |
+| anything else | `extraEnv` |
+
+A value left empty is not passed to the container at all. That matters: the application
+reads several settings as `Number(env ?? default)`, where an empty string becomes `0`
+rather than the documented default.
+{{ end }}
