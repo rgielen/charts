@@ -20,7 +20,7 @@
     "managerFilePatterns": ["/^charts/[^/]+/values\\.yaml$/"]
   },
   "kubernetes": {
-    "description": "Images in the throwaway manifests ct install needs. .helmignore keeps ci/ out of the packaged chart, so these bumps are not chart changes and need no chart version bump.",
+    "description": "Images in the throwaway manifests ct install needs. .helmignore keeps them out of the packaged chart, but ct treats any change under charts/<name>/ as a chart change, so these bumps still need a chart version bump.",
     "managerFilePatterns": ["/^charts/[^/]+/ci/fixtures/.+\\.ya?ml$/"]
   },
   "customManagers": [
@@ -49,8 +49,8 @@
       ]
     },
     {
-      "description": "An image pinned in a chart template ships inside the package, so bumping it is a chart change and carries the same obligation.",
-      "matchFileNames": ["charts/*/templates/**"],
+      "description": "Anything under a chart directory is a chart change as far as ct is concerned -- a template image because it ships inside the package, a ci/ fixture because ct's check-version-increment does not care that .helmignore excludes it.",
+      "matchFileNames": ["charts/*/templates/**", "charts/*/ci/**"],
       "automerge": false,
       "prBodyNotes": [
         ":warning: **Bump the chart's own `version:` in `Chart.yaml` in this branch before merging.** Without it, chart-releaser skips the chart on `main` and this update never reaches consumers."

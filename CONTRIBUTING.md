@@ -109,7 +109,9 @@ Homebrew (`brew install chart-testing norwoodj/tap/helm-docs`).
 ## Bump the version
 
 Every pull request that touches a chart must raise that chart's `version` in
-`Chart.yaml`. `ct lint` enforces it in CI, and for good reason: the release workflow
+`Chart.yaml`. "Touches" means any file under `charts/<name>/`, including `ci/` — `ct`
+does not care that `.helmignore` keeps those out of the package, so a fixture bump costs
+a patch version too. `ct lint` enforces it in CI, and for good reason: the release workflow
 packages all charts but only publishes versions that do not exist yet. A chart edited
 without a bump passes through the release job without an error and simply never ships.
 
