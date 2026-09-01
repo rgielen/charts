@@ -1,6 +1,6 @@
 # manifest-llm-gateway
 
-![Version: 2.0.1](https://img.shields.io/badge/Version-2.0.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.18.0](https://img.shields.io/badge/AppVersion-6.18.0-informational?style=flat-square)
+![Version: 2.1.0](https://img.shields.io/badge/Version-2.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.19.1](https://img.shields.io/badge/AppVersion-6.19.1-informational?style=flat-square)
 
 Manifest, the self-hosted LLM gateway, proxy and dashboard.
 
@@ -41,13 +41,13 @@ From the Helm repository:
 ```bash
 helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.0.1
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.1.0
 ```
 
 Or directly from the OCI registry:
 
 ```bash
-helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.0.1
+helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.1.0
 ```
 
 ## Source Code
@@ -434,7 +434,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.0.1
+    targetRevision: 2.1.0
     helm:
       valuesObject:
         manifest:
