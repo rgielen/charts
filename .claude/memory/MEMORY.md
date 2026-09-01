@@ -10,3 +10,4 @@
 - [renovate.json has no comments](renovate-json-has-no-comments.md) — a `_comment_*` key is an invalid option and stops every Renovate PR; use `description`
 - [OPEN: follow-ups](open-followups.md) — the nightly upstream-sync still unobserved, `gh` missing the `workflow` scope, inotify possibly not persistent
 - [Manifest migration paths](manifest-migration-paths.md) — two paths, one lock, one CLI; concurrent migrate.js runs deadlock on CREATE INDEX CONCURRENTLY
+- [Layer 2 of the drift check is planned](upstream-drift-layer-2-planned.md) — designed, not built; the full plan is issue #26, and the model may only escalate
