@@ -2,7 +2,9 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "dependencyDashboard": true,
-  "_comment_ignorePaths": "config:recommended pulls in :ignoreModulesAndTests, whose ignorePaths include **/test/** and **/tests/**. Helm puts test hooks in templates/tests/ by convention and ships them inside the package, so that default hides a real, published dependency. This is the preset's list with those two entries dropped; ignorePaths is not mergeable, so it has to be restated in full.",
+  "description": [
+    "config:recommended pulls in :ignoreModulesAndTests, whose ignorePaths include **/test/** and **/tests/**. Helm puts test hooks in templates/tests/ by convention and ships them inside the package, so that default hides a real, published dependency. This is the preset's list with those two entries dropped; ignorePaths is not mergeable, so it has to be restated in full."
+  ],
   "ignorePaths": [
     "**/node_modules/**",
     "**/bower_components/**",
