@@ -40,7 +40,7 @@ jobs:
           # ct compares against target-branch; a shallow clone has nothing to compare to.
           fetch-depth: 0
 
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v5
 
       # No setup-python: the action installs ct and its python tooling through uv
       # and brings its own interpreter. Pairing it with `python-version: 3.x` and
