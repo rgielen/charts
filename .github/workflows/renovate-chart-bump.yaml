@@ -1,0 +1,127 @@
+name: Bump Charts On Dependency PRs
+
+# Renovate can update an image pinned inside a chart, but it cannot raise that
+# chart's `version:`. Without the bump, `ct lint --check-version-increment` fails
+# the pull request -- and if it ever got merged without one, chart-releaser would
+# skip the chart on `main` and report success while shipping nothing.
+#
+# This adds the bump, regenerates the README and pushes onto the dependency
+# pull request's own branch, so Renovate keeps ownership of it. Then it runs the
+# full lint and install suite against the updated branch, because a push made
+# with GITHUB_TOKEN does not re-trigger the pull request's own checks.
+#
+# It stops there on purpose. The last two of these needed a person: one to decide
+# that a PostgreSQL major was fine for a throwaway CI fixture, one to check that
+# curl's numeric UID had not moved, because the chart pins `runAsUser: 100`.
+# Neither is something a workflow was going to notice.
+
+on:
+  schedule:
+    # Twice a day. Dependency updates are not urgent, and Renovate itself runs
+    # on its own cadence.
+    - cron: "37 6,18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: renovate-chart-bump
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: Look for chart bumps to add
+    runs-on: ubuntu-latest
+    outputs:
+      pending: ${{ steps.push.outputs.pending }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect pull requests missing a bump
+        id: detect
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pending="$(python3 .github/scripts/renovate_chart_bump.py detect)"
+          echo "pending=$pending" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/helm-docs
+        if: steps.detect.outputs.pending != '[]'
+        with:
+          regenerate: "false"
+
+      - name: Add the bump to each branch
+        id: push
+        if: steps.detect.outputs.pending != '[]'
+        env:
+          PENDING: ${{ steps.detect.outputs.pending }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          gh label create chart-bump-added --color 0E8A16 --force \
+            --description "A chart version bump was added to this dependency update" > /dev/null
+
+          pushed="$(mktemp)"
+
+          echo "$PENDING" | jq -c '.[]' | while read -r entry; do
+            number=$(jq -r .number <<< "$entry")
+            branch=$(jq -r .branch <<< "$entry")
+            chart=$(jq -r .chart <<< "$entry")
+            dir=$(jq -r .dir <<< "$entry")
+            from=$(jq -r .from <<< "$entry")
+            to=$(jq -r .to <<< "$entry")
+
+            git fetch origin "$branch"
+            git checkout -B "$branch" "origin/$branch"
+            python3 .github/scripts/renovate_chart_bump.py apply "$dir/Chart.yaml" "$to"
+            .github/scripts/regenerate-readmes.sh
+
+            if git diff --quiet -- "$dir"; then
+              echo "#$number: nothing to change after all, skipping."
+              continue
+            fi
+
+            git add "$dir"
+            git commit \
+              -m "chore($chart): bump the chart version to $to" \
+              -m "Added automatically: Renovate cannot raise a chart's own version, and without it chart-releaser skips the chart on main without an error."
+            git push origin "$branch"
+
+            gh pr edit "$number" --add-label chart-bump-added
+
+            comment="$(mktemp)"
+            run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            {
+              printf 'Added the chart version bump this update needs: `%s` `%s` → `%s`, plus the regenerated README.\n\n' "$chart" "$from" "$to"
+              printf "Renovate cannot raise a chart's own \`version:\`, and without it chart-releaser packages the chart on \`main\`, finds the version already published, and skips it — a green release run that ships nothing.\n\n"
+              printf 'Lint and install ran against this branch in [the workflow run that pushed the bump](%s), because a push made with `GITHUB_TOKEN` does not re-trigger the checks on this pull request.\n\n' "$run_url"
+              printf '**Not merged automatically.** Deciding whether the new version is right for this chart is the part left to you.\n'
+            } > "$comment"
+            gh pr comment "$number" --body-file "$comment"
+
+            jq -c '.' <<< "$entry" >> "$pushed"
+          done
+
+          jq -cs '.' "$pushed" > "$pushed.json"
+          echo "pending=$(cat "$pushed.json")" >> "$GITHUB_OUTPUT"
+          cat "$pushed.json"
+
+  # Called rather than awaited: the push above used GITHUB_TOKEN, which does not
+  # re-trigger the pull request's checks. Same reason as in upstream-sync.yaml.
+  verify:
+    name: Verify ${{ matrix.chart }} on #${{ matrix.number }}
+    needs: detect
+    if: needs.detect.outputs.pending != '' && needs.detect.outputs.pending != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.detect.outputs.pending) }}
+    uses: ./.github/workflows/lint-test.yaml
+    with:
+      ref: ${{ matrix.branch }}

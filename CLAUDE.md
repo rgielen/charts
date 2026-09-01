@@ -88,6 +88,14 @@ Run the script from the repository root; it builds the absolute path itself.
 `charts.rgielen.de/ci-fixture: "true"` label. Fixtures live in a fixed namespace and are
 addressed by cluster FQDN, because `ct` installs each release into a random namespace.
 
+## Dependency updates that touch a chart
+
+Renovate cannot raise a chart's own `version:`, so `renovate-chart-bump.yaml` adds it —
+twice a day, onto the dependency pull request's own branch, along with the regenerated
+README — then runs `lint-test.yaml` through `workflow_call` against that branch, because
+its own push used `GITHUB_TOKEN` and does not re-trigger the pull request's checks. It does
+not merge: whether the new version suits the chart is a judgement call.
+
 ## Upstream image tracking
 
 A chart whose `appVersion` follows a container image carries four `Chart.yaml`
