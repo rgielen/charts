@@ -9,21 +9,12 @@ Everything built on 2026-09-01 is released and verified except the items below. 
 is either waiting on somebody else's schedule or was concluded from evidence rather than
 observed directly.
 
-**1. The Renovate `ignorePaths` fix is not confirmed.** `config:recommended` pulls in
-`:ignoreModulesAndTests`, whose `ignorePaths` include `**/tests/**`, which hid
-`curlimages/curl` in `charts/manifest-llm-gateway/templates/tests/test-health.yaml` from
-the regex manager. `ignorePaths` was overridden, but the hosted Renovate instance had not
-re-scanned yet — the dependency dashboard still showed the old state and the manual-run
-checkbox was ticked but unconsumed. Check:
-
-```sh
-gh issue view 8 --json body --jq '.body' | grep -A3 "test-health"
-```
-
-Confirmed once `curlimages/curl` appears under *Detected Dependencies*. If it still does
-not, the cause is elsewhere and the regex in `customManagers[1]` is the next suspect —
-though it was checked against the file content and matches. See
-[[helm-docs-template-concatenation]] for the other silent-failure trap in this repo.
+**1. ~~The Renovate `ignorePaths` fix is not confirmed.~~ Resolved 2026-09-01.** Renovate
+now lists `charts/manifest-llm-gateway/templates/tests/test-health.yaml` under *Detected
+Dependencies* and has opened a pull request for `curlimages/curl`. The delay had a second
+cause worth remembering: the `_comment_ignorePaths` key added alongside the fix made the
+whole configuration invalid and stopped Renovate opening pull requests at all — see
+[[renovate-json-has-no-comments]].
 
 **2. The nightly `upstream-sync` run has never happened.** Both dry runs used
 `workflow_dispatch`. On a `schedule` event the `inputs` context is unavailable and

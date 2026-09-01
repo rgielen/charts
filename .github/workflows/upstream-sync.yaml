@@ -37,7 +37,9 @@ jobs:
     name: Look for new upstream releases
     runs-on: ubuntu-latest
     outputs:
-      updates: ${{ steps.detect.outputs.updates }}
+      # Enriched by the pull request step with the drift verdict, so the merge
+      # job can gate on it. The raw detect output has no verdict yet.
+      updates: ${{ steps.prepare.outputs.prepared }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -68,6 +70,7 @@ jobs:
           regenerate: "false"
 
       - name: Open a pull request per chart
+        id: prepare
         if: steps.detect.outputs.updates != '[]'
         env:
           UPDATES: ${{ steps.detect.outputs.updates }}
@@ -76,6 +79,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          gh label create upstream-major --color B60205 --force \
+            --description "Upstream major release; not merged automatically" > /dev/null
+          gh label create upstream-review --color FBCA04 --force \
+            --description "Upstream configuration surface changed; needs a look" > /dev/null
+
+          prepared="$(mktemp)"
+
+          # A pipe would run the loop in a subshell and lose everything written
+          # to shell state, so results go to a file that survives it.
           echo "$UPDATES" | jq -c '.[]' | while read -r update; do
             name=$(jq -r .name <<< "$update")
             dir=$(jq -r .dir <<< "$update")
@@ -92,6 +104,20 @@ jobs:
               continue
             fi
 
+            # Before anything is written: did the settings this chart models move
+            # underneath it? Any doubt -- unreachable registry, missing label,
+            # failed fetch -- comes back as "review" and holds the pull request.
+            report="$(mktemp)"
+            verdict="$(python3 .github/scripts/upstream_diff.py "$dir" "$app_from" "$app" \
+              --markdown-out "$report" | jq -r .verdict || true)"
+            if [ -z "$verdict" ] || [ "$verdict" = "null" ]; then
+              verdict=review
+              echo "### Upstream configuration surface" > "$report"
+              echo >> "$report"
+              echo "The drift check did not produce a verdict. Review this bump by hand." >> "$report"
+            fi
+            echo "$name: upstream drift verdict = $verdict"
+
             git checkout -B "$branch" origin/${GITHUB_REF_NAME}
             python3 .github/scripts/upstream_sync.py apply "$dir/Chart.yaml" "$app" "$chart_version"
             # The version bump changes the README badges, and the docs check in
@@ -104,24 +130,40 @@ jobs:
               -m "Chart version $chart_from -> $chart_version, appVersion $app_from -> $app."
             git push origin "$branch"
 
-            body="Upstream \`$app_from\` → \`$app\` (${bump}), chart \`$chart_from\` → \`$chart_version\`."
-            if [ -n "$releases" ]; then
-              body="$body"$'\n\n'"Release notes: $releases"
-            fi
-            if [ "$bump" = "major" ]; then
-              body="$body"$'\n\n'"This is an upstream **major** release, so it is not merged automatically. Check the upstream release notes for settings this chart needs to model differently before merging."
-            fi
+            body="$(mktemp)"
+            {
+              echo "Upstream \`$app_from\` → \`$app\` (${bump}), chart \`$chart_from\` → \`$chart_version\`."
+              if [ -n "$releases" ]; then
+                printf '\nRelease notes: %s\n' "$releases"
+              else
+                printf '\nThe upstream published no release for this version, so there are no release notes to link.\n'
+              fi
+              if [ "$bump" = "major" ]; then
+                printf '\nThis is an upstream **major** release, so it is not merged automatically.\n'
+              fi
+              printf '\n'
+              cat "$report"
+            } > "$body"
 
             gh pr create \
               --base "$GITHUB_REF_NAME" \
               --head "$branch" \
               --title "feat($name): update to upstream $app" \
-              --body "$body"
+              --body-file "$body"
 
             if [ "$bump" = "major" ]; then
-              gh pr edit "$branch" --add-label upstream-major || true
+              gh pr edit "$branch" --add-label upstream-major
             fi
+            if [ "$verdict" != "clean" ]; then
+              gh pr edit "$branch" --add-label upstream-review
+            fi
+
+            jq -c --arg verdict "$verdict" '. + {verdict: $verdict}' <<< "$update" >> "$prepared"
           done
+
+          jq -cs '.' "$prepared" > "$prepared.json"
+          echo "prepared=$(cat "$prepared.json")" >> "$GITHUB_OUTPUT"
+          cat "$prepared.json"
 
   # Called rather than awaited: a pull request opened with GITHUB_TOKEN does not
   # trigger `pull_request` workflows, so waiting for lint-test to appear on its
@@ -130,7 +172,7 @@ jobs:
   verify:
     name: Verify ${{ matrix.name }}
     needs: detect
-    if: needs.detect.outputs.updates != '[]'
+    if: needs.detect.outputs.updates != '' && needs.detect.outputs.updates != '[]'
     strategy:
       fail-fast: false
       matrix:
@@ -142,7 +184,7 @@ jobs:
   merge:
     name: Merge ${{ matrix.name }}
     needs: [detect, verify]
-    if: needs.detect.outputs.updates != '[]'
+    if: needs.detect.outputs.updates != '' && needs.detect.outputs.updates != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -152,12 +194,17 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Merge
-        if: matrix.bumpType != 'major'
+        if: matrix.bumpType != 'major' && matrix.verdict == 'clean'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh pr merge "${{ matrix.branch }}" --squash --delete-branch
 
-      - name: Leave a major bump for review
-        if: matrix.bumpType == 'major'
+      - name: Leave it for review
+        if: matrix.bumpType == 'major' || matrix.verdict != 'clean'
         run: |
-          echo "::notice::${{ matrix.name }} ${{ matrix.appVersion }} is an upstream major release. The pull request stays open for review."
+          if [ "${{ matrix.bumpType }}" = "major" ]; then
+            echo "::notice::${{ matrix.name }} ${{ matrix.appVersion }} is an upstream major release. The pull request stays open for review."
+          fi
+          if [ "${{ matrix.verdict }}" != "clean" ]; then
+            echo "::notice::${{ matrix.name }} ${{ matrix.appVersion }}: the upstream configuration surface changed, or could not be compared. The pull request stays open, with the diff in its body."
+          fi

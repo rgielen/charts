@@ -4,7 +4,7 @@ description: Manifest, the self-hosted LLM gateway, proxy and dashboard.
 type: application
 
 # The chart's own version. Bumped on every change to this directory.
-version: 2.0.0
+version: 2.0.1
 # The packaged upstream version. Quoted so a two-segment tag stays a string.
 appVersion: "6.19.1"
 
@@ -34,4 +34,13 @@ annotations:
   charts.rgielen.de/upstream-image: docker.io/manifestdotbuild/manifest
   # Keeps `latest`, `6`, `6.19`, `sha-<commit>` and the `*.sig` cosign tags out.
   charts.rgielen.de/upstream-tag-pattern: '^[0-9]+\.[0-9]+\.[0-9]+$'
-  charts.rgielen.de/upstream-releases: https://github.com/mnfst/manifest/releases/tag/v{version}
+  # The upstream tags releases as `manifest@<version>`, not `v<version>` -- and
+  # does not cut one for every image tag, so this link is checked before it is
+  # used rather than assumed to resolve.
+  charts.rgielen.de/upstream-releases: https://github.com/mnfst/manifest/releases/tag/manifest@{version}
+  # Files compared between the old and the new image's commit before a bump is
+  # merged unattended. `app.config.ts` is the authoritative environment surface;
+  # the two .env.example files document it, and neither is complete on its own.
+  # One line on purpose: Chart.yaml here is read line-based so its comments
+  # survive an automated bump, and that reader does not follow folded scalars.
+  charts.rgielen.de/upstream-watch-paths: docker/.env.example,docker/docker-compose.yml,packages/backend/.env.example,packages/backend/src/config/app.config.ts

@@ -90,12 +90,19 @@ addressed by cluster FQDN, because `ct` installs each release into a random name
 
 ## Upstream image tracking
 
-A chart whose `appVersion` follows a container image carries three `Chart.yaml`
-annotations (`charts.rgielen.de/upstream-image`, `-tag-pattern`, `-releases`).
-`upstream-sync.yaml` watches the image nightly, bumps `appVersion` **and** `version`
-together, regenerates the README, opens a pull request, and merges it unless the upstream
-bump was a major one. That coupled bump is precisely what Renovate cannot do, which is why
-`renovate.json` still forbids automerge for image updates.
+A chart whose `appVersion` follows a container image carries four `Chart.yaml`
+annotations (`charts.rgielen.de/upstream-image`, `-tag-pattern`, `-releases`,
+`-watch-paths`). `upstream-sync.yaml` watches the image nightly, bumps `appVersion` **and**
+`version` together, regenerates the README, opens a pull request, and merges it only when
+the bump is not a major one **and** the drift check is clean. That coupled bump is
+precisely what Renovate cannot do, which is why `renovate.json` still forbids automerge for
+image updates.
+
+The drift check (`.github/scripts/upstream_diff.py`) resolves both image tags to upstream
+commits through `org.opencontainers.image.revision` — release notes are not usable here,
+the upstream publishes image tags with no matching GitHub release — and diffs the
+`-watch-paths` files between them. Everything it cannot determine is `review`, which holds
+the pull request with the diff in its body. It never decides whether a change *matters*.
 
 The workflow verifies its own pull request by *calling* `lint-test.yaml` through
 `workflow_call` rather than waiting for it: a pull request opened with `GITHUB_TOKEN` never
