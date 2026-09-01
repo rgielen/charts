@@ -257,9 +257,10 @@ manifest:
   port: 2099
 
   # -- Public URL the dashboard is reached at (`BETTER_AUTH_URL`). Must match
-  # what the browser actually uses, or logins and OAuth callbacks break. Serve
-  # it over https wherever it is reachable from the internet: the application
-  # only sends HSTS for an `https://` origin.
+  # what the browser actually uses, or logins and OAuth callbacks break. No
+  # trailing slash — the application appends paths such as `/api/auth/...` to
+  # this value. Serve it over https wherever it is reachable from the internet:
+  # the application only sends HSTS for an `https://` origin.
   # @default -- derived from the first `ingress.hosts` entry when an Ingress is enabled
   # @section -- Manifest: core
   publicUrl: ""

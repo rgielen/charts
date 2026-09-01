@@ -13,6 +13,11 @@ on:
   # trigger `pull_request` workflows, so that workflow cannot wait for this one to
   # run on its own -- it invokes it inside its own run instead. Keeping it a
   # reusable workflow means lint and install exist exactly once.
+  #
+  # `inputs` is unavailable outside a workflow_call run, and an unavailable
+  # context evaluates to the empty string rather than failing. On a pull_request
+  # run `ref` is therefore "", which is actions/checkout's own default -- the
+  # normal PR checkout. Verified on this workflow's own pull request run.
   workflow_call:
     inputs:
       ref:

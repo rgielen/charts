@@ -40,8 +40,8 @@
         "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
         "publicUrl": {
           "type": "string",
-          "description": "Empty, or an absolute http/https URL without a trailing slash.",
-          "pattern": "^$|^https?://[^/]+(/[^\\s]*)?$"
+          "description": "Empty, or an absolute http/https URL without a trailing slash. The application appends paths such as /api/auth/... to this value, so a trailing slash produces a doubled separator.",
+          "pattern": "^$|^https?://[^/\\s]+(/[^\\s]*[^/\\s])?$"
         },
         "mode": { "enum": ["selfhosted", "cloud"] },
         "disableHsts": { "type": "boolean" },

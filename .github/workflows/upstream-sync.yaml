@@ -17,6 +17,8 @@ on:
     - cron: "17 5 * * *"
   workflow_dispatch:
     inputs:
+      # `inputs` is unavailable on a schedule run and evaluates to the empty
+      # string there, which the step below turns into "no --chart argument".
       chart:
         description: Limit the check to a single chart directory name.
         type: string
@@ -52,6 +54,8 @@ jobs:
       - name: Detect pending updates
         id: detect
         run: |
+          # ${CHART:+...} expands to nothing when CHART is empty or unset, which
+          # is the case on every scheduled run.
           updates="$(python3 .github/scripts/upstream_sync.py detect ${CHART:+--chart "$CHART"})"
           echo "updates=$updates" >> "$GITHUB_OUTPUT"
         env:

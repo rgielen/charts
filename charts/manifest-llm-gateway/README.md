@@ -139,7 +139,7 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.existingSecret | string | `""` | Name of an existing Secret holding sensitive settings. Its keys are the upstream environment variable names (`BETTER_AUTH_SECRET`, `DATABASE_URL`, `EMAIL_API_KEY`, ...) and it is mounted with `envFrom`. Takes precedence over the plain values below, which makes it the right choice for GitOps: keep the Secret in sealed-secrets or external-secrets and leave the values here empty. |
 | manifest.mode | string | `"selfhosted"` | Deployment mode (`MANIFEST_MODE`). `selfhosted` relaxes the SSRF rules so private and plain-http provider URLs are allowed. Set explicitly rather than left to auto-detection, exactly as the upstream compose file does. |
 | manifest.port | int | `2099` | Port the application listens on (`PORT`). |
-| manifest.publicUrl | string | derived from the first `ingress.hosts` entry when an Ingress is enabled | Public URL the dashboard is reached at (`BETTER_AUTH_URL`). Must match what the browser actually uses, or logins and OAuth callbacks break. Serve it over https wherever it is reachable from the internet: the application only sends HSTS for an `https://` origin. |
+| manifest.publicUrl | string | derived from the first `ingress.hosts` entry when an Ingress is enabled | Public URL the dashboard is reached at (`BETTER_AUTH_URL`). Must match what the browser actually uses, or logins and OAuth callbacks break. No trailing slash — the application appends paths such as `/api/auth/...` to this value. Serve it over https wherever it is reachable from the internet: the application only sends HSTS for an `https://` origin. |
 
 ### Manifest: LLM proxy
 
