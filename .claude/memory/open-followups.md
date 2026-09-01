@@ -41,5 +41,12 @@ printf 'fs.inotify.max_user_instances = 512\nfs.inotify.max_user_watches = 52428
 sudo sysctl --system
 ```
 
+**A scheduled routine checks this file.** `rgielen/charts — open follow-ups`
+(`trig_01GGA4bUnenMByUoaKa6TeYF`, Mondays 07:00 UTC,
+<https://claude.ai/code/routines/trig_01GGA4bUnenMByUoaKa6TeYF>) reads this file, verifies
+what is verifiable from a cloud sandbox — item 2 above, essentially — and reports the rest
+as "you have to run this yourself". It reads the file rather than a copy of these items, so
+editing this file is how you steer it. It does not modify the repository.
+
 **How to apply:** work through these at the next session and delete each one as it closes;
-delete the file when all four are done.
+delete the file when all are done, and turn the routine off at the link above.
