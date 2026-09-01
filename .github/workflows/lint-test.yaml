@@ -37,12 +37,12 @@ jobs:
 
       - uses: azure/setup-helm@v4
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.x"
-          check-latest: true
-
-      - uses: helm/chart-testing-action@v2.7.0
+      # No setup-python: the action installs ct and its python tooling through uv
+      # and brings its own interpreter. Pairing it with `python-version: 3.x` and
+      # `check-latest: true` is what broke this workflow once already -- Python
+      # 3.14 removed `ast.Num`, which the yamale version bundled with ct 3.12
+      # still used, so an unrelated upstream release turned every run red.
+      - uses: helm/chart-testing-action@v2.8.0
 
       - name: Detect changed charts
         id: list-changed
