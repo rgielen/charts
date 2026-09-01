@@ -1,0 +1,35 @@
+# The multi-replica path: two replicas, the surge-first rolling update that
+# comes with having no ReadWriteOnce volume, a PodDisruptionBudget, and a
+# topology constraint that is a no-op on kind's single node but proves the
+# template renders and schedules.
+#
+# Recordings deliberately land in the per-pod emptyDir here rather than S3:
+# there is no S3-compatible endpoint in the test cluster, and what this scenario
+# needs to prove is that two replicas come up behind one migration Job.
+manifest:
+  database:
+    url: postgresql://manifest:manifest@postgres.manifest-llm-gateway-ci.svc.cluster.local:5432/manifest
+  auth:
+    secret: ci-only-session-secret-0123456789abcdef
+  disableHsts: true
+
+replicaCount: 2
+
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: manifest-llm-gateway
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    memory: 1Gi

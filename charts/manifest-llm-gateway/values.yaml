@@ -33,17 +33,20 @@ nameOverride: ""
 # @section -- Workload
 fullnameOverride: ""
 
-# -- Number of application replicas. More than one needs
-# `manifest.runMigrationsOnBoot: false` on all but one instance and S3-backed
-# request recordings — see the chart README.
+# -- Number of application replicas. More than one needs S3-backed request
+# recordings rather than a ReadWriteOnce volume, and has consequences for rate
+# limiting and threshold alerts that the chart cannot fix — read the
+# high-availability section of the chart README before raising it.
 # @section -- Workload
 replicaCount: 1
 
-# -- Deployment update strategy. `Recreate` because the default request
-# recording volume is ReadWriteOnce, which a rolling update cannot share.
+# -- Deployment update strategy. Left empty, the chart picks one: `Recreate`
+# while `persistence.enabled` uses a ReadWriteOnce claim the replicas cannot
+# share, and a surge-first `RollingUpdate` (`maxUnavailable: 0`) otherwise —
+# which is what keeps a multi-replica install available across an upgrade.
+# @default -- `Recreate` with a ReadWriteOnce volume, surge-first `RollingUpdate` otherwise
 # @section -- Workload
-updateStrategy:
-  type: Recreate
+updateStrategy: {}
 
 # -- Grace period for the pod to finish in-flight requests. Keep this above
 # `manifest.shutdownDrainMs` (which is milliseconds), or the kubelet kills the
@@ -135,6 +138,21 @@ topologySpreadConstraints: []
 # -- Priority class for the pod.
 # @section -- Workload
 priorityClassName: ""
+
+# -- Voluntary-disruption budget. Off by default because it does nothing useful
+# for a single replica and actively blocks node drains for one; with more than
+# one replica you want it, and the install notes say so.
+# @section -- Workload
+podDisruptionBudget:
+  # -- Create a PodDisruptionBudget.
+  # @section -- Workload
+  enabled: false
+  # -- Minimum available pods. Takes precedence over `maxUnavailable` when set.
+  # @section -- Workload
+  minAvailable: ""
+  # -- Maximum unavailable pods.
+  # @section -- Workload
+  maxUnavailable: 1
 
 # -- Startup probe. Generous by design: a cold start runs database migrations
 # and warms the pricing cache, which the upstream compose file gives 90 seconds.
@@ -322,6 +340,14 @@ manifest:
     # migrations are applied by the application on boot.
     # @section -- Manifest: database
     url: ""
+    # -- Direct, non-pooled connection string used only for migrations
+    # (`MIGRATION_DATABASE_URL`). Falls back to `database.url` when empty, which
+    # is right whenever that is already a direct connection. Set it when
+    # `database.url` points at a transaction pooler such as PgBouncer: the
+    # migration runner takes a *session*-scoped PostgreSQL advisory lock, and
+    # transaction pooling does not preserve one.
+    # @section -- Manifest: database
+    migrationUrl: ""
     # -- Size of the application's connection pool (`DB_POOL_MAX`).
     # @section -- Manifest: database
     poolMax: 10
@@ -474,10 +500,57 @@ manifest:
     # @section -- Manifest: operations
     limit: 100
 
-  # -- Run database migrations on boot (`RUN_MIGRATIONS_ON_BOOT`). With more
-  # than one replica, exactly one of them should do this.
+  migrations:
+    # -- Apply migrations from a `pre-install`/`pre-upgrade` hook Job instead of
+    # on application boot. The Job runs the upstream's own migration entry
+    # point, which wraps the run in a PostgreSQL advisory lock, and it runs
+    # exactly once per release — so the schema is in place before any pod
+    # starts, and a failed migration is a failed Job with readable logs rather
+    # than a pod stuck in CrashLoopBackOff.
+    # @section -- Manifest: operations
+    job:
+      # -- Create the migration Job.
+      # @section -- Manifest: operations
+      enabled: true
+      # -- Retries before the Job is considered failed.
+      # @section -- Manifest: operations
+      backoffLimit: 3
+      # -- Hard timeout for the whole Job. A first migration on an empty
+      # database builds every index and is not instant.
+      # @section -- Manifest: operations
+      activeDeadlineSeconds: 900
+      # -- Resource requests and limits for the migration pod.
+      # @section -- Manifest: operations
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 512Mi
+      # -- Service account for the migration pod. Empty uses `default`, because
+      # the chart's own service account does not exist yet when a `pre-install`
+      # hook runs. Point this at a pre-existing account when the migration pod
+      # needs an identity of its own — a cloud workload identity for a managed
+      # database, say. When `serviceAccount.create` is false, the configured
+      # account already exists and is used automatically.
+      # @section -- Manifest: operations
+      serviceAccountName: ""
+      # -- Extra annotations for the Job object.
+      # @section -- Manifest: operations
+      annotations: {}
+      # -- Extra annotations for the migration pod.
+      # @section -- Manifest: operations
+      podAnnotations: {}
+
+  # -- Also apply migrations when the application boots
+  # (`RUN_MIGRATIONS_ON_BOOT`). Off, because `migrations.job` already did it.
+  # Turning it on with more than one replica is refused: the boot path does not
+  # take the advisory lock the Job's entry point takes, and one pending
+  # migration is a `CREATE INDEX CONCURRENTLY` that waits for the other
+  # replicas' sessions while those wait for the lock — a cycle PostgreSQL does
+  # not detect and does not break.
   # @section -- Manifest: operations
-  runMigrationsOnBoot: true
+  runMigrationsOnBoot: false
 
   # -- Grace period in ms to finish in-flight requests after SIGTERM
   # (`SHUTDOWN_DRAIN_MS`). Keep `terminationGracePeriodSeconds` above it.

@@ -34,6 +34,25 @@
         }
       }
     },
+    "podDisruptionBudget": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "minAvailable": {
+          "description": "Empty to use maxUnavailable instead.",
+          "oneOf": [
+            { "type": "string", "pattern": "^$|^[0-9]+%?$" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        },
+        "maxUnavailable": {
+          "oneOf": [
+            { "type": "string", "pattern": "^[0-9]+%?$" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        }
+      }
+    },
     "manifest": {
       "type": "object",
       "properties": {
@@ -48,6 +67,19 @@
         "corsOrigins": { "type": "array", "items": { "type": "string" } },
         "existingSecret": { "type": "string" },
         "runMigrationsOnBoot": { "type": "boolean" },
+        "migrations": {
+          "type": "object",
+          "properties": {
+            "job": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "backoffLimit": { "type": "integer", "minimum": 0 },
+                "activeDeadlineSeconds": { "type": "integer", "minimum": 1 }
+              }
+            }
+          }
+        },
         "shutdownDrainMs": { "type": "integer", "minimum": 0 },
         "auth": {
           "type": "object",
@@ -69,6 +101,11 @@
             "url": {
               "type": "string",
               "description": "Empty (then manifest.existingSecret must provide it) or a postgresql:// connection string.",
+              "pattern": "^$|^postgres(ql)?://"
+            },
+            "migrationUrl": {
+              "type": "string",
+              "description": "Empty (falls back to url) or a direct, non-pooled postgresql:// connection string.",
               "pattern": "^$|^postgres(ql)?://"
             },
             "poolMax": { "type": "integer", "minimum": 1 },

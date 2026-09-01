@@ -8,7 +8,7 @@ metadata:
 spec:
   replicas: {{ .Values.replicaCount }}
   strategy:
-    {{- toYaml .Values.updateStrategy | nindent 4 }}
+    {{- include "manifest-llm-gateway.updateStrategy" . | nindent 4 }}
   selector:
     matchLabels:
       {{- include "manifest-llm-gateway.selectorLabels" . | nindent 6 }}
