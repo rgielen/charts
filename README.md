@@ -4,10 +4,9 @@ Helm charts maintained by [@rgielen](https://github.com/rgielen), published from
 repository on every merge to `main`. Each chart is versioned and released
 independently.
 
-Charts are consumed by the GitOps repositories
-[`k3s-nuc`](https://github.com/rgielen/k3s-nuc) and
-[`k3s-ze`](https://github.com/rgielen/k3s-ze), but nothing here is specific to those
-clusters.
+Nothing here is specific to any one cluster. The charts are written for GitOps
+consumption — see [Use from ArgoCD](#use-from-argocd) — but work equally well with plain
+`helm install`.
 
 ## Available charts
 
