@@ -88,6 +88,18 @@ Run the script from the repository root; it builds the absolute path itself.
 `charts.rgielen.de/ci-fixture: "true"` label. Fixtures live in a fixed namespace and are
 addressed by cluster FQDN, because `ct` installs each release into a random namespace.
 
+## Auditing a chart against its upstream
+
+`/analyze-upstream` is the interactive companion to the CI drift check: it answers whether
+an upstream change alters what the chart must model, and applies accepted edits up to a
+lint-clean working tree — never a commit, push or release. It runs
+`.github/scripts/chart_audit.py` (chart claims versus what the upstream reads, plus the
+image assumptions the templates depend on) and `upstream_diff.py` before judging anything.
+
+The skill lives in `.claude/skills/analyze-upstream/`, with its calibration reference
+beside it. Cloud sessions and `claude-code-action` load project skills from the repository,
+so the same skill is meant to serve CI in `--report-only` mode — see issue #26.
+
 ## Dependency updates that touch a chart
 
 Renovate cannot raise a chart's own `version:`, so `renovate-chart-bump.yaml` adds it —

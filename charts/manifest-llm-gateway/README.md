@@ -1,6 +1,6 @@
 # manifest-llm-gateway
 
-![Version: 2.0.2](https://img.shields.io/badge/Version-2.0.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.19.1](https://img.shields.io/badge/AppVersion-6.19.1-informational?style=flat-square)
+![Version: 2.0.3](https://img.shields.io/badge/Version-2.0.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.19.1](https://img.shields.io/badge/AppVersion-6.19.1-informational?style=flat-square)
 
 Manifest, the self-hosted LLM gateway, proxy and dashboard.
 
@@ -41,13 +41,13 @@ From the Helm repository:
 ```bash
 helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.0.2
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.0.3
 ```
 
 Or directly from the OCI registry:
 
 ```bash
-helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.0.2
+helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.0.3
 ```
 
 ## Source Code
@@ -434,7 +434,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.0.2
+    targetRevision: 2.0.3
     helm:
       valuesObject:
         manifest:
@@ -475,8 +475,12 @@ in the left column.
 | `REQUEST_RECORDING_STORAGE` | `manifest.recordings.storage` |
 | `REQUEST_RECORDING_FILESYSTEM_PATH` | `manifest.recordings.filesystemPath` |
 | `REQUEST_RECORDING_RETENTION_DAYS` | `manifest.recordings.retentionDays` |
-| `REQUEST_RECORDING_S3_BUCKET`, `_ENDPOINT`, `_REGION`, `_FORCE_PATH_STYLE` | `manifest.recordings.s3.bucket`, `.endpoint`, `.region`, `.forcePathStyle` |
-| `REQUEST_RECORDING_S3_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY` | `manifest.recordings.s3.accessKeyId`, `.secretAccessKey` *(secret)* |
+| `REQUEST_RECORDING_S3_BUCKET` | `manifest.recordings.s3.bucket` |
+| `REQUEST_RECORDING_S3_ENDPOINT` | `manifest.recordings.s3.endpoint` |
+| `REQUEST_RECORDING_S3_REGION` | `manifest.recordings.s3.region` |
+| `REQUEST_RECORDING_S3_FORCE_PATH_STYLE` | `manifest.recordings.s3.forcePathStyle` |
+| `REQUEST_RECORDING_S3_ACCESS_KEY_ID` | `manifest.recordings.s3.accessKeyId` *(secret)* |
+| `REQUEST_RECORDING_S3_SECRET_ACCESS_KEY` | `manifest.recordings.s3.secretAccessKey` *(secret)* |
 | `PROVIDER_TIMEOUT_MS`, `STREAM_WARMUP_MS`, `CODEX_SEMANTIC_OUTPUT_TIMEOUT_MS` | `manifest.proxy.providerTimeoutMs`, `.streamWarmupMs`, `.codexSemanticOutputTimeoutMs` |
 | `MANIFEST_CONCURRENCY_MAX` | `manifest.proxy.concurrencyMax` |
 | `OLLAMA_HOST` | `manifest.ollamaHost` |
@@ -497,6 +501,9 @@ in the left column.
 | `MANIFEST_TELEMETRY_DISABLED`, `TELEMETRY_ENDPOINT` | `manifest.telemetry.disabled`, `.endpoint` |
 | `SEED_DATA`, `NODE_ENV` | fixed, as in the upstream compose file |
 | anything else | `extraEnv` |
+
+Every variable is spelled out in full rather than abbreviated with a shared prefix, so
+`.github/scripts/chart_audit.py` can check this table for completeness instead of guessing.
 
 A value left empty is not passed to the container at all. That matters: the application
 reads several settings as `Number(env ?? default)`, where an empty string becomes `0`
