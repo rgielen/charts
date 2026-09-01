@@ -47,7 +47,7 @@
       "matchManagers": ["helmv3", "helm-values"],
       "automerge": false,
       "prBodyNotes": [
-        ":warning: **Bump the chart's own `version:` in `Chart.yaml` in this branch before merging.** Without it, chart-releaser skips the chart on `main` and this update never reaches consumers."
+        ":information_source: This update touches a chart, so it needs a chart `version:` bump that Renovate cannot make. The `renovate-chart-bump` workflow adds it and re-runs lint and install; until it has, `ct lint` fails here. What is left for the reviewer is whether the new version is right for the chart."
       ]
     },
     {
@@ -55,7 +55,7 @@
       "matchFileNames": ["charts/*/templates/**", "charts/*/ci/**"],
       "automerge": false,
       "prBodyNotes": [
-        ":warning: **Bump the chart's own `version:` in `Chart.yaml` in this branch before merging.** Without it, chart-releaser skips the chart on `main` and this update never reaches consumers."
+        ":information_source: This update touches a chart, so it needs a chart `version:` bump that Renovate cannot make. The `renovate-chart-bump` workflow adds it and re-runs lint and install; until it has, `ct lint` fails here. What is left for the reviewer is whether the new version is right for the chart."
       ]
     },
     {

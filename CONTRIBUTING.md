@@ -69,6 +69,21 @@ Deployment labelled `charts.rgielen.de/ci-fixture: "true"` to report Available. 
 a fixed namespace and address them from `ci/*-values.yaml` by their cluster FQDN: `ct`
 installs each release into a random namespace of its own.
 
+### Dependency updates that touch a chart
+
+Renovate can bump an image pinned inside a chart, but it cannot raise that chart's own
+`version:` — so `ct lint --check-version-increment` fails its pull request until someone
+adds one. `.github/workflows/renovate-chart-bump.yaml` runs twice a day, adds the bump and
+the regenerated README to the pull request's own branch, labels it `chart-bump-added`, and
+runs lint and install against the updated branch. The run has to do that itself: a push
+made with `GITHUB_TOKEN` does not re-trigger the pull request's checks.
+
+It stops short of merging on purpose. The two of these so far both needed a person — one to
+decide a PostgreSQL major was fine for a throwaway CI fixture, one to check that curl's
+numeric UID had not moved, because the chart pins `runAsUser: 100` for that pod.
+
+If Renovate later rebases the branch it drops the bump commit; the next run adds it back.
+
 ### Tracking an upstream image
 
 A chart whose `appVersion` follows a container image opts into automatic updates with three
