@@ -13,6 +13,7 @@ spec:
   # shell or HTTP client to exec into.
   containers:
     - name: health
+      # renovate: datasource=docker depName=curlimages/curl
       image: curlimages/curl:8.11.1
       securityContext:
         runAsNonRoot: true
