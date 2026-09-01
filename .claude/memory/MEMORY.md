@@ -8,3 +8,4 @@
 - [Never generate secrets in charts](never-generate-secrets-in-charts.md) — ArgoCD renders without `lookup`, and a rotated encryption key means data loss
 - [Charts start at 1.0.0](charts-start-at-1-0-0.md) — no 0.x phase; a pinned targetRevision deserves a stable values interface
 - [OPEN: follow-ups](open-followups.md) — Renovate detection unconfirmed, the nightly upstream-sync unobserved, `gh` missing the `workflow` scope, inotify possibly not persistent
+- [Manifest migration paths](manifest-migration-paths.md) — two paths, one lock, one CLI; concurrent migrate.js runs deadlock on CREATE INDEX CONCURRENTLY

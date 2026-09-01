@@ -1,6 +1,6 @@
 # manifest-llm-gateway
 
-![Version: 1.0.2](https://img.shields.io/badge/Version-1.0.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.19.1](https://img.shields.io/badge/AppVersion-6.19.1-informational?style=flat-square)
+![Version: 2.0.0](https://img.shields.io/badge/Version-2.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.19.1](https://img.shields.io/badge/AppVersion-6.19.1-informational?style=flat-square)
 
 Manifest, the self-hosted LLM gateway, proxy and dashboard.
 
@@ -30,7 +30,7 @@ Two things are deliberately different from Compose:
 Not included, on purpose: no NetworkPolicy (a gateway needs egress to every provider on
 the internet, so the policy would be decorative), no PodDisruptionBudget and no
 HorizontalPodAutoscaler (the default is a single replica, and scaling out has real
-prerequisites — see [Running more than one replica](#running-more-than-one-replica)). The
+prerequisites — see [High availability](#high-availability)). The
 Compose file's `pids_limit: 512` has no pod-level equivalent and is a node setting in
 Kubernetes.
 
@@ -41,13 +41,13 @@ From the Helm repository:
 ```bash
 helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 1.0.2
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.0.0
 ```
 
 Or directly from the OCI registry:
 
 ```bash
-helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 1.0.2
+helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.0.0
 ```
 
 ## Source Code
@@ -68,11 +68,15 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | nameOverride | string | `""` | Overrides the chart name used in resource names. |
 | nodeSelector | object | `{}` | Node selector for pod assignment. |
 | podAnnotations | object | `{}` | Extra annotations for the pod. |
+| podDisruptionBudget | object | `{"enabled":false,"maxUnavailable":1,"minAvailable":""}` | Voluntary-disruption budget. Off by default because it does nothing useful for a single replica and actively blocks node drains for one; with more than one replica you want it, and the install notes say so. |
+| podDisruptionBudget.enabled | bool | `false` | Create a PodDisruptionBudget. |
+| podDisruptionBudget.maxUnavailable | int | `1` | Maximum unavailable pods. |
+| podDisruptionBudget.minAvailable | string | `""` | Minimum available pods. Takes precedence over `maxUnavailable` when set. |
 | podLabels | object | `{}` | Extra labels for the pod. |
 | podSecurityContext | object | `{"fsGroup":65532,"runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seccompProfile":{"type":"RuntimeDefault"}}` | Pod-level security context. UID/GID 65532 is the user the upstream image already runs as. |
 | priorityClassName | string | `""` | Priority class for the pod. |
 | readinessProbe | object | `{"failureThreshold":3,"httpGet":{"path":"/api/v1/health","port":"http"},"periodSeconds":10,"timeoutSeconds":3}` | Readiness probe. The health endpoint answers 503 while the process drains on SIGTERM, which takes the pod out of the Service before it stops. |
-| replicaCount | int | `1` | Number of application replicas. More than one needs `manifest.runMigrationsOnBoot: false` on all but one instance and S3-backed request recordings — see the chart README. |
+| replicaCount | int | `1` | Number of application replicas. More than one needs S3-backed request recordings rather than a ReadWriteOnce volume, and has consequences for rate limiting and threshold alerts that the chart cannot fix — read the high-availability section of the chart README before raising it. |
 | resources | object | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"100m","memory":"512Mi"}}` | Resource requests and limits. No CPU limit on purpose: CFS throttling on a streaming proxy shows up directly as a worse time-to-first-token. The memory limit mirrors the `mem_limit: 1g` of the upstream compose file. |
 | serviceAccount | object | `{"annotations":{},"automountServiceAccountToken":false,"create":true,"name":""}` | Service account used by the pod. |
 | serviceAccount.annotations | object | `{}` | Annotations for the service account. |
@@ -84,7 +88,7 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | tmpDir | object | `{"sizeLimit":"64Mi"}` | Size of the in-memory `/tmp` volume. The container runs with a read-only root filesystem, so `/tmp` has to be mounted separately. |
 | tolerations | list | `[]` | Tolerations for pod assignment. |
 | topologySpreadConstraints | list | `[]` | Topology spread constraints for pod assignment. |
-| updateStrategy | object | `{"type":"Recreate"}` | Deployment update strategy. `Recreate` because the default request recording volume is ReadWriteOnce, which a rolling update cannot share. |
+| updateStrategy | object | `Recreate` with a ReadWriteOnce volume, surge-first `RollingUpdate` otherwise | Deployment update strategy. Left empty, the chart picks one: `Recreate` while `persistence.enabled` uses a ReadWriteOnce claim the replicas cannot share, and a surge-first `RollingUpdate` (`maxUnavailable: 0`) otherwise — which is what keeps a multi-replica install available across an upgrade. |
 
 ### Extensibility
 
@@ -160,6 +164,7 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | manifest.database.authPoolMax | int | `5` | Size of the separate pool Better Auth opens (`AUTH_DB_POOL_MAX`). |
+| manifest.database.migrationUrl | string | `""` | Direct, non-pooled connection string used only for migrations (`MIGRATION_DATABASE_URL`). Falls back to `database.url` when empty, which is right whenever that is already a direct connection. Set it when `database.url` points at a transaction pooler such as PgBouncer: the migration runner takes a *session*-scoped PostgreSQL advisory lock, and transaction pooling does not preserve one. |
 | manifest.database.poolMax | int | `10` | Size of the application's connection pool (`DB_POOL_MAX`). |
 | manifest.database.tuneSession | string | `""` | Statements applied to each new session (`DB_TUNE_SESSION`). |
 | manifest.database.url | string | `""` | PostgreSQL connection string (`DATABASE_URL`), for example `postgresql://manifest:secret@postgres.databases.svc:5432/manifest`. Required unless `existingSecret` provides it. Special characters in the password must be percent-encoded. This chart does not deploy a database; migrations are applied by the application on boot. |
@@ -183,6 +188,23 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.providerOauth.minimaxClientId | string | `""` | `MINIMAX_OAUTH_CLIENT_ID` |
 | manifest.providerOauth.openaiClientId | string | `""` | `OPENAI_OAUTH_CLIENT_ID` |
 
+### Manifest: operations
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| manifest.migrations.job | object | `{"activeDeadlineSeconds":900,"annotations":{},"backoffLimit":3,"enabled":true,"podAnnotations":{},"resources":{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}},"serviceAccountName":""}` | Apply migrations from a `pre-install`/`pre-upgrade` hook Job instead of on application boot. The Job runs the upstream's own migration entry point, which wraps the run in a PostgreSQL advisory lock, and it runs exactly once per release — so the schema is in place before any pod starts, and a failed migration is a failed Job with readable logs rather than a pod stuck in CrashLoopBackOff. |
+| manifest.migrations.job.activeDeadlineSeconds | int | `900` | Hard timeout for the whole Job. A first migration on an empty database builds every index and is not instant. |
+| manifest.migrations.job.annotations | object | `{}` | Extra annotations for the Job object. |
+| manifest.migrations.job.backoffLimit | int | `3` | Retries before the Job is considered failed. |
+| manifest.migrations.job.enabled | bool | `true` | Create the migration Job. |
+| manifest.migrations.job.podAnnotations | object | `{}` | Extra annotations for the migration pod. |
+| manifest.migrations.job.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | Resource requests and limits for the migration pod. |
+| manifest.migrations.job.serviceAccountName | string | `""` | Service account for the migration pod. Empty uses `default`, because the chart's own service account does not exist yet when a `pre-install` hook runs. Point this at a pre-existing account when the migration pod needs an identity of its own — a cloud workload identity for a managed database, say. When `serviceAccount.create` is false, the configured account already exists and is used automatically. |
+| manifest.runMigrationsOnBoot | bool | `false` | Also apply migrations when the application boots (`RUN_MIGRATIONS_ON_BOOT`). Off, because `migrations.job` already did it. Turning it on with more than one replica is refused: the boot path does not take the advisory lock the Job's entry point takes, and one pending migration is a `CREATE INDEX CONCURRENTLY` that waits for the other replicas' sessions while those wait for the lock — a cycle PostgreSQL does not detect and does not break. |
+| manifest.shutdownDrainMs | int | `10000` | Grace period in ms to finish in-flight requests after SIGTERM (`SHUTDOWN_DRAIN_MS`). Keep `terminationGracePeriodSeconds` above it. |
+| manifest.throttle.limit | int | `100` | Maximum requests per window per client (`THROTTLE_LIMIT`). |
+| manifest.throttle.ttl | int | `60000` | Rate limit window in ms (`THROTTLE_TTL`). |
+
 ### Manifest: request recordings
 
 | Key | Type | Default | Description |
@@ -196,15 +218,6 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.recordings.s3.region | string | `""` | Region (`REQUEST_RECORDING_S3_REGION`). |
 | manifest.recordings.s3.secretAccessKey | string | `""` | Secret access key (`REQUEST_RECORDING_S3_SECRET_ACCESS_KEY`). |
 | manifest.recordings.storage | string | `"auto"` | Where message bodies are stored (`REQUEST_RECORDING_STORAGE`): `auto` picks S3 when a complete S3 configuration is present and the local volume otherwise. Metadata always lives in the database; only the bodies are affected by this. |
-
-### Manifest: operations
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| manifest.runMigrationsOnBoot | bool | `true` | Run database migrations on boot (`RUN_MIGRATIONS_ON_BOOT`). With more than one replica, exactly one of them should do this. |
-| manifest.shutdownDrainMs | int | `10000` | Grace period in ms to finish in-flight requests after SIGTERM (`SHUTDOWN_DRAIN_MS`). Keep `terminationGracePeriodSeconds` above it. |
-| manifest.throttle.limit | int | `100` | Maximum requests per window per client (`THROTTLE_LIMIT`). |
-| manifest.throttle.ttl | int | `60000` | Rate limit window in ms (`THROTTLE_TTL`). |
 
 ### Manifest: observability
 
@@ -299,8 +312,8 @@ differs per controller — for ingress-nginx it is
 ## Database
 
 `manifest.database.url` is a standard PostgreSQL connection string. Percent-encode special
-characters in the password (`@` → `%40`, `:` → `%3A`, `/` → `%2F`). The application applies
-its own migrations on boot, so there is no migration Job or Helm hook to run.
+characters in the password (`@` → `%40`, `:` → `%3A`, `/` → `%2F`). Migrations are applied
+by the chart — see [Database migrations](#database-migrations).
 
 Back up the database, not the cluster: it holds accounts, provider credentials, harness
 keys and request metadata.
@@ -320,20 +333,80 @@ optional, and go to one of two places:
 Retention defaults to 365 days upstream; override with
 `manifest.recordings.retentionDays`.
 
-## Running more than one replica
+## Database migrations
 
-The default is a single replica, and raising it has two prerequisites:
+Migrations are applied by a `pre-install`/`pre-upgrade` hook Job that runs the upstream's
+own migration entry point, not by the application on boot. The Job runs exactly once per
+release, so the schema is in place before any pod starts, and a failed migration is a
+failed Job with readable logs instead of a pod in `CrashLoopBackOff`. Its ConfigMap and
+Secret are hook-scoped copies — a `pre-install` hook runs before the release's own
+resources exist, and on upgrade the release's copies still hold the previous values.
 
-1. **Migrations.** Every replica runs them on boot. Set
-   `manifest.runMigrationsOnBoot: false` and let one instance — or a one-off run before the
-   rollout — apply them.
-2. **Recordings.** A ReadWriteOnce volume cannot be shared. Use
-   `manifest.recordings.s3` instead of `persistence`.
+`manifest.runMigrationsOnBoot` is off by default because of this. Turning it on alongside
+more than one replica is refused outright, and that is not caution:
 
-`manifest.proxy.concurrencyMax` is a per-tenant limit *per backend process*, so the
-effective ceiling multiplies with the replica count.
+> The boot path applies migrations without the advisory lock the migration entry point
+> takes. One pending migration is a `CREATE INDEX CONCURRENTLY`, which waits for every
+> other session that can see the table — including the replicas blocked on the advisory
+> lock, which are waiting for the holder, which is waiting for the index. PostgreSQL does
+> not recognise this as a deadlock and does not break it. Observed hanging indefinitely
+> with three concurrent runners against an empty database.
 
-The chart warns about both cases in its install notes.
+If `manifest.database.url` points at a transaction pooler such as PgBouncer, set
+`manifest.database.migrationUrl` to a direct connection. The advisory lock is
+session-scoped and transaction pooling does not preserve it.
+
+**One migration path the Job cannot cover.** Besides the TypeORM migrations, the
+application creates Better Auth's own tables on module init, through a separate code path
+with no lock and no entry point of its own. On a *first* install with more than one
+replica the pods race on those `CREATE TABLE`s: one exits with a duplicate-object error
+and is restarted, then finds the tables in place and starts normally. The end state is
+correct, and rolling upgrades never hit it because only one new pod starts at a time. To
+avoid the restart entirely, install with `replicaCount: 1` and scale up afterwards.
+
+## High availability
+
+Single-node is not a requirement, and never was — a multi-node cluster with one replica
+needs no special configuration. More than one *replica* is a different question.
+
+What the chart handles:
+
+- **Rollout strategy.** With no ReadWriteOnce volume in play it defaults to a surge-first
+  `RollingUpdate` (`maxUnavailable: 0`), so an upgrade does not interrupt service. With
+  `persistence.enabled` it falls back to `Recreate`, because a rolling update would wait
+  forever for a claim the old pod still holds. Override with `updateStrategy`.
+- **Migrations.** See above — the hook Job is what makes multiple replicas safe.
+- **Recordings.** Configure `manifest.recordings.s3`; a ReadWriteOnce volume cannot be
+  shared, and the chart refuses that combination rather than leaving pods `Pending`.
+- **Disruption.** Set `podDisruptionBudget.enabled: true`. It is off by default because
+  for a single replica it only blocks node drains.
+- **Placement.** Nothing is spread across nodes unless you say so. This constraint is a
+  no-op on a single-node cluster and spreads on a larger one:
+
+  ```yaml
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: manifest-llm-gateway
+  ```
+
+What the chart cannot fix, because it is upstream behaviour:
+
+| | Effect with `n` replicas |
+| --- | --- |
+| Rate limiting | `THROTTLE_LIMIT` is enforced in memory, per pod. The effective limit is `n ×` the configured value, and a client can draw the full allowance from each pod. |
+| Concurrency cap | `manifest.proxy.concurrencyMax` is per backend process, so the per-tenant ceiling multiplies the same way. |
+| Threshold alerts | The hourly job checks "already sent?" and then sends, with no lock in between. The same alert can go out more than once. |
+| Dashboard cache | A bounded in-memory LRU per pod, so two replicas can report different figures until the entries expire. Cosmetic. |
+
+Recording retention cleanup is *not* on that list: it takes its own advisory lock upstream
+and is safe across replicas.
+
+If a strict global rate limit matters to you, enforce it at the ingress rather than
+relying on `THROTTLE_LIMIT`.
 
 ## Upgrading
 
@@ -361,7 +434,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 1.0.2
+    targetRevision: 2.0.0
     helm:
       valuesObject:
         manifest:
@@ -397,7 +470,8 @@ in the left column.
 | `DATABASE_URL` | `manifest.database.url` *(secret)* |
 | `POSTGRES_PASSWORD` | not applicable — the database is external |
 | `DB_POOL_MAX`, `AUTH_DB_POOL_MAX`, `DB_TUNE_SESSION` | `manifest.database.poolMax`, `.authPoolMax`, `.tuneSession` |
-| `RUN_MIGRATIONS_ON_BOOT` | `manifest.runMigrationsOnBoot` |
+| `RUN_MIGRATIONS_ON_BOOT` | `manifest.runMigrationsOnBoot`, off by default — see [Database migrations](#database-migrations) |
+| `MIGRATION_DATABASE_URL` | `manifest.database.migrationUrl` *(secret)* |
 | `REQUEST_RECORDING_STORAGE` | `manifest.recordings.storage` |
 | `REQUEST_RECORDING_FILESYSTEM_PATH` | `manifest.recordings.filesystemPath` |
 | `REQUEST_RECORDING_RETENTION_DAYS` | `manifest.recordings.retentionDays` |

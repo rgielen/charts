@@ -2,6 +2,11 @@
 
 {{- $publicUrl := include "manifest-llm-gateway.publicUrl" . }}
 
+{{- if .Values.manifest.migrations.job.enabled }}
+Database migrations were applied by the {{ include "manifest-llm-gateway.fullname" . }}-migrate
+Job before this release rolled out.
+{{- end }}
+
 1. Reach the dashboard:
 {{- if .Values.ingress.enabled }}
 {{- range .Values.ingress.hosts }}
@@ -38,18 +43,31 @@ application cannot send HSTS and logs a warning on every boot. Terminate TLS in
 front of it, or set manifest.disableHsts=true on an HTTP-only LAN install.
 {{- end }}
 
-{{- if and (gt (int .Values.replicaCount) 1) .Values.manifest.runMigrationsOnBoot }}
+{{- if gt (int .Values.replicaCount) 1 }}
 
-WARNING: replicaCount is {{ .Values.replicaCount }} with runMigrationsOnBoot
-still true, so every replica runs the database migrations at the same time. Run
-one replica for the migration, or set manifest.runMigrationsOnBoot=false.
+Running {{ .Values.replicaCount }} replicas. Three things the chart cannot fix
+for you, in decreasing order of how much they matter:
+
+  - Rate limiting is per pod. THROTTLE_LIMIT={{ .Values.manifest.throttle.limit }}
+    is enforced {{ .Values.replicaCount }} times independently, so a client can
+    draw up to {{ mul (int .Values.manifest.throttle.limit) (int .Values.replicaCount) }}
+    requests per window. The same goes for
+    manifest.proxy.concurrencyMax.
+  - Threshold alert e-mails can be sent more than once. The hourly job checks
+    "already sent?" and then sends, without a lock between the two.
+  - Dashboard figures can differ between replicas for up to a minute; the
+    response cache is per pod.
+{{- if not .Values.podDisruptionBudget.enabled }}
+
+  Consider podDisruptionBudget.enabled=true, or a node drain can take every
+  replica down at once.
 {{- end }}
+{{- if not .Values.topologySpreadConstraints }}
 
-{{- if and (gt (int .Values.replicaCount) 1) .Values.persistence.enabled }}
-
-WARNING: replicaCount is {{ .Values.replicaCount }} and request recordings use a
-ReadWriteOnce volume, which the replicas cannot share. Use S3-compatible storage
-(manifest.recordings.s3) for more than one replica.
+  Consider topologySpreadConstraints so the replicas do not all land on one
+  node -- see the chart README for a constraint that is a no-op on a
+  single-node cluster.
+{{- end }}
 {{- end }}
 
 {{- if and (not .Values.persistence.enabled) (not .Values.manifest.recordings.s3.bucket) }}

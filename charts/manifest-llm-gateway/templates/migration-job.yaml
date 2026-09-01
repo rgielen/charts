@@ -1,0 +1,131 @@
+{{- if .Values.manifest.migrations.job.enabled }}
+{{- $fullName := include "manifest-llm-gateway.fullname" . }}
+{{- $secretEnv := include "manifest-llm-gateway.secretEnv" . }}
+{{/*
+  The hook needs its own copies of the configuration, not the release's.
+  A pre-install hook runs before any release resource exists, so the release
+  ConfigMap and Secret are not there yet; on pre-upgrade they exist but still
+  hold the *previous* release's values. Both copies are hook-scoped and are
+  deleted again when the hook succeeds.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullName }}-migrate
+  labels:
+    {{- include "manifest-llm-gateway.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+data:
+  {{- include "manifest-llm-gateway.plainEnv" . | nindent 2 }}
+{{- if trim $secretEnv }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $fullName }}-migrate
+  labels:
+    {{- include "manifest-llm-gateway.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+type: Opaque
+stringData:
+  {{- $secretEnv | nindent 2 }}
+{{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $fullName }}-migrate
+  labels:
+    {{- include "manifest-llm-gateway.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    # Kept on failure on purpose: the pod logs are the only place the failing
+    # migration is named.
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    {{- with .Values.manifest.migrations.job.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  backoffLimit: {{ .Values.manifest.migrations.job.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.manifest.migrations.job.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "manifest-llm-gateway.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.manifest.migrations.job.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "manifest-llm-gateway.migrationServiceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      containers:
+        - name: migrate
+          image: {{ include "manifest-llm-gateway.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          # The image's entrypoint is node, and its default argument starts the
+          # server. This replaces it with the upstream's migration entry point
+          # (`npm run migration:run:prod`), which wraps the run in a PostgreSQL
+          # session advisory lock and exits when it is done.
+          args:
+            - packages/backend/dist/database/migrate.js
+          envFrom:
+            - configMapRef:
+                name: {{ $fullName }}-migrate
+            {{- if trim $secretEnv }}
+            - secretRef:
+                name: {{ $fullName }}-migrate
+            {{- end }}
+            {{- with .Values.manifest.existingSecret }}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
+            {{- with .Values.extraEnvFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.manifest.migrations.job.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.tmpDir.sizeLimit }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
