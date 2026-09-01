@@ -7,6 +7,36 @@ entries:
       charts.rgielen.de/upstream-tag-pattern: ^[0-9]+\.[0-9]+\.[0-9]+$
     apiVersion: v2
     appVersion: 6.19.1
+    created: "2026-09-01T12:48:58.466141416Z"
+    description: Manifest, the self-hosted LLM gateway, proxy and dashboard.
+    digest: 5c0826a1f659e32657a0f4b5957690ad167d045cec4dd9dffff9e63cc192f5c9
+    home: https://manifest.build
+    icon: https://manifest.build/favicon.ico
+    keywords:
+    - llm
+    - gateway
+    - proxy
+    - openai
+    - anthropic
+    - ollama
+    - ai
+    maintainers:
+    - name: rgielen
+      url: https://github.com/rgielen
+    name: manifest-llm-gateway
+    sources:
+    - https://github.com/mnfst/manifest
+    - https://github.com/rgielen/charts
+    type: application
+    urls:
+    - https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-1.0.1/manifest-llm-gateway-1.0.1.tgz
+    version: 1.0.1
+  - annotations:
+      charts.rgielen.de/upstream-image: docker.io/manifestdotbuild/manifest
+      charts.rgielen.de/upstream-releases: https://github.com/mnfst/manifest/releases/tag/v{version}
+      charts.rgielen.de/upstream-tag-pattern: ^[0-9]+\.[0-9]+\.[0-9]+$
+    apiVersion: v2
+    appVersion: 6.19.1
     created: "2026-09-01T12:30:09.134655794Z"
     description: Manifest, the self-hosted LLM gateway, proxy and dashboard.
     digest: 1416c0fcad0585c3c064357fcc66a433157a29d63bd1004f4340e71fc0316435
@@ -61,4 +91,4 @@ entries:
     urls:
     - https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-0.1.0/manifest-llm-gateway-0.1.0.tgz
     version: 0.1.0
-generated: "2026-09-01T12:30:09.134661896Z"
+generated: "2026-09-01T12:48:58.466156879Z"
