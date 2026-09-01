@@ -46,7 +46,7 @@ jobs:
       - name: Install crane
         env:
           # renovate: datasource=github-releases depName=google/go-containerregistry
-          CRANE_VERSION: 0.20.6
+          CRANE_VERSION: 0.22.0
         run: |
           curl -sSfL "https://github.com/google/go-containerregistry/releases/download/v${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz" \
             | sudo tar -xz -C /usr/local/bin crane
