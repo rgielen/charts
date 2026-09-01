@@ -84,6 +84,22 @@ never re-release a version with different content, always cut a new one. Both cl
 are single-node — a chart change that forces a pod restart is a real, if short, outage
 there.
 
+## Language
+
+This repository is public: **all documentation and publicly visible content is written
+in English** — READMEs, `values.yaml` comments (they become the published docs),
+`Chart.yaml` descriptions, commit messages, PR and issue text. The user converses in
+German, and the sister repos `k3s-nuc` / `k3s-ze` keep German `README.adoc` files
+because they are private; neither carries over here.
+
+## Agent memory
+
+Project memory lives in `.claude/memory/` **inside this repo**, not under `~/.claude/`,
+so it is versioned and travels between workstations. `MEMORY.md` there is the index;
+`.claude/memory/README.md` explains the one-time symlink that enables auto-recall on a
+new machine. Memory changes are committed and pushed together with the work that
+prompted them — never left in the working tree.
+
 ## Conventions
 
 - Chart `apiVersion: v2`, `type: application` unless it is a library chart.
