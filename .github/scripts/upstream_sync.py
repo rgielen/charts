@@ -24,6 +24,8 @@ import json
 import re
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 ANNOTATION_IMAGE = "charts.rgielen.de/upstream-image"
@@ -92,6 +94,25 @@ def change_kind(current: tuple[int, int, int], latest: tuple[int, int, int]) -> 
     return "patch"
 
 
+def release_url(template: str, version: str) -> str:
+    """Resolve the release-notes link, but only if it actually exists.
+
+    Upstreams do not all tag the way you expect -- the one tracked here uses
+    `manifest@6.19.0`, not `v6.19.0`, and skips the release entirely for some
+    published image tags. A dead link in every pull request trains you to ignore
+    the link, so an unresolvable one is simply omitted.
+    """
+    if not template:
+        return ""
+    url = template.replace("{version}", version)
+    request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "rgielen-charts"})
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return url if response.status == 200 else ""
+    except (urllib.error.HTTPError, OSError):
+        return ""
+
+
 def detect(charts_dir: Path, only: str | None) -> list[dict]:
     updates = []
     for chart_yaml in sorted(charts_dir.glob("*/Chart.yaml")):
@@ -118,7 +139,7 @@ def detect(charts_dir: Path, only: str | None) -> list[dict]:
 
         kind = change_kind(parse_version(current_app), parse_version(latest))
         new_chart_version = bump_chart_version(chart["version"], kind)
-        releases = chart.get(ANNOTATION_RELEASES, "")
+        releases = release_url(chart.get(ANNOTATION_RELEASES, ""), latest)
         updates.append(
             {
                 "name": directory.name,
@@ -130,7 +151,7 @@ def detect(charts_dir: Path, only: str | None) -> list[dict]:
                 "chartVersion": new_chart_version,
                 "bumpType": kind,
                 "branch": f"upstream/{directory.name}-{latest}",
-                "releasesUrl": releases.replace("{version}", latest) if releases else "",
+                "releasesUrl": releases,
             }
         )
         print(

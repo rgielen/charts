@@ -81,11 +81,37 @@ annotations:
   charts.rgielen.de/upstream-releases: https://github.com/example/app/releases/tag/v{version}
 ```
 
+A fourth annotation opts the chart into the drift check:
+
+```yaml
+  charts.rgielen.de/upstream-watch-paths: docker/.env.example,docker/docker-compose.yml
+```
+
 `.github/workflows/upstream-sync.yaml` then watches the image nightly and opens a pull
 request that bumps `appVersion` and the chart `version` together, regenerates the README,
-runs the full lint and install suite, and merges itself unless the upstream bump was a
-major one. The tag pattern is what keeps `latest`, floating majors and cosign `*.sig` tags
-out of the comparison.
+runs the full lint and install suite, and merges itself — but only when the upstream bump
+is not a major one **and** the drift check came back clean. The tag pattern keeps `latest`,
+floating majors and cosign `*.sig` tags out of the version comparison.
+
+### The drift check
+
+An image bump is only safe to merge unattended if the settings the chart models did not
+move underneath it, and release notes are not a reliable way to find out: this upstream
+publishes image tags with no matching GitHub release at all. Every image does carry
+`org.opencontainers.image.revision`, the commit it was built from, so
+`.github/scripts/upstream_diff.py` resolves both versions to commits and compares the
+watched files between them, plus any newly added migration file.
+
+It answers *did anything change*, not *does it matter* — a changed default reads the same
+as a new variable, because deciding which of those matters is a person's job. Anything it
+cannot determine is `review`, never `clean`: a check that says clean when it could not look
+is worse than no check.
+
+A `review` verdict labels the pull request `upstream-review`, puts the diff in its body,
+and leaves it open. Merging it is the act of confirming the chart still matches upstream.
+Put the paths that actually define the configuration surface in the annotation — for
+`manifest-llm-gateway` that includes the backend's own `app.config.ts`, which is
+authoritative in a way that neither `.env.example` is.
 
 ## Before opening a pull request
 
