@@ -8,6 +8,37 @@ entries:
       charts.rgielen.de/upstream-watch-paths: docker/.env.example,docker/docker-compose.yml,packages/backend/.env.example,packages/backend/src/config/app.config.ts
     apiVersion: v2
     appVersion: 6.19.1
+    created: "2026-09-01T15:15:40.964875862Z"
+    description: Manifest, the self-hosted LLM gateway, proxy and dashboard.
+    digest: 6fce782b9a283c525c9378bb51e552a951a08bd4247baf01074d08f7ce2f9227
+    home: https://manifest.build
+    icon: https://manifest.build/favicon.ico
+    keywords:
+    - llm
+    - gateway
+    - proxy
+    - openai
+    - anthropic
+    - ollama
+    - ai
+    maintainers:
+    - name: rgielen
+      url: https://github.com/rgielen
+    name: manifest-llm-gateway
+    sources:
+    - https://github.com/mnfst/manifest
+    - https://github.com/rgielen/charts
+    type: application
+    urls:
+    - https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.0.2/manifest-llm-gateway-2.0.2.tgz
+    version: 2.0.2
+  - annotations:
+      charts.rgielen.de/upstream-image: docker.io/manifestdotbuild/manifest
+      charts.rgielen.de/upstream-releases: https://github.com/mnfst/manifest/releases/tag/manifest@{version}
+      charts.rgielen.de/upstream-tag-pattern: ^[0-9]+\.[0-9]+\.[0-9]+$
+      charts.rgielen.de/upstream-watch-paths: docker/.env.example,docker/docker-compose.yml,packages/backend/.env.example,packages/backend/src/config/app.config.ts
+    apiVersion: v2
+    appVersion: 6.19.1
     created: "2026-09-01T15:03:24.804009319Z"
     description: Manifest, the self-hosted LLM gateway, proxy and dashboard.
     digest: 950643e59f0325509c459ccbfebd2a7abe8f6a0de62418498b91800a6ef2122a
@@ -182,4 +213,4 @@ entries:
     urls:
     - https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-0.1.0/manifest-llm-gateway-0.1.0.tgz
     version: 0.1.0
-generated: "2026-09-01T15:03:24.804034233Z"
+generated: "2026-09-01T15:15:40.964897685Z"
