@@ -11,10 +11,10 @@ released** (PR #20): `upstream_diff.py` resolves both image tags to upstream com
 `charts.rgielen.de/upstream-watch-paths`. Auto-merge of an upstream bump requires a
 non-major bump *and* a `clean` verdict.
 
-**Layer 2 is designed and deliberately not built yet**: a Claude review of what a held diff
-*means* for the chart, as opposed to whether anything changed. The complete plan —
-verified action inputs, the escalate-only gate rule, the curated context, the output
-schema, acceptance criteria, and the dry-run recipe — is
+**Layer 2 is not built yet, but its analysis now exists**: `/analyze-upstream`
+([[analyze-upstream-skill]]) does the reviewing work locally. What is left for layer 2 is
+to invoke that skill in `--report-only` mode from CI and turn its findings into an extra
+hold — not to write a second prompt. The plan, rewritten for that, is
 **<https://github.com/rgielen/charts/issues/26>**. Read that issue before touching this;
 it is written to be picked up cold.
 
@@ -31,6 +31,8 @@ The two constraints that shape it, so they are not re-litigated:
 upstream lowered `DB_POOL_MAX` 30 → 10 and `AUTH_DB_POOL_MAX` 10 → 5, values this chart
 pins, with no variable added or removed for a name-level diff to notice.
 
-**How to apply:** do not start building from this file. Open issue #26. If layer 1 has
-never held a real pull request, say so before building anything. See
+**How to apply:** do not start building from this file. Open issue #26. Two things to
+establish first: whether layer 1 has ever held a real pull request, and whether
+`claude-code-action` can actually invoke a repository skill — the whole design rests on
+that, and it is untested. See
 [[manifest-migration-paths]] for the upstream facts the review has to calibrate against.
