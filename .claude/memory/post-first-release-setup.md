@@ -5,10 +5,13 @@ metadata:
   type: project
 ---
 
-As of 2026-09-01 the repository is a scaffold: CI, docs and config are committed, but
-`charts/` is empty, no release has ever run, and **two pieces of one-time setup are
-still open.** Neither can be done in advance — both need artefacts that only the first
-release creates. Until then the publishing side of this repo is untested.
+As of 2026-09-01 the repository exists at `github.com/rgielen/charts` (public) and is a
+scaffold: CI, docs and config are committed, but `charts/` is empty. A manual
+`workflow_dispatch` run of Release Charts confirmed the empty-charts guard — it is green
+and skips every publishing step — so **nothing has ever actually been published, and two
+pieces of one-time setup are still open.** Neither can be done in advance; both need
+artefacts that only the first real release creates. Until then the publishing side of
+this repo is untested end to end.
 
 **1. GitHub Pages must be switched to branch `gh-pages`.**
 `helm/chart-releaser-action` creates that branch on the first successful release. Only
