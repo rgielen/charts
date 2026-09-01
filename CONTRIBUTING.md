@@ -84,6 +84,39 @@ numeric UID had not moved, because the chart pins `runAsUser: 100` for that pod.
 
 If Renovate later rebases the branch it drops the bump commit; the next run adds it back.
 
+### Auditing a chart against its upstream
+
+`/analyze-upstream` (`.claude/skills/analyze-upstream/`) is the interactive companion to
+the drift check below. Where the workflow answers *did anything change* and holds a pull
+request, the skill answers *does it change what the chart must model* — and applies the
+edits you accept, stopping at a lint-clean working tree.
+
+It runs two deterministic scripts before judging anything:
+
+- `.github/scripts/upstream_diff.py` — the configuration-surface diff between two image
+  revisions, the same one CI uses.
+- `.github/scripts/chart_audit.py` — what the chart claims against what the upstream reads:
+  environment variables emitted but missing from the mapping table, table rows the chart no
+  longer emits, settings the upstream reads that the chart models nowhere, every
+  `values.schema.json` enum, and the image assumptions the templates are built on.
+
+That last group is the one worth knowing about. The migration Job runs
+`packages/backend/dist/database/migrate.js` by path, the pod security context pins UID
+65532, the probes use `/api/v1/health`, and the Helm test pod exists because the image has
+no shell. `chart_audit.py` verifies each against the actual image, because none of it
+survives an upstream refactor visibly.
+
+Two conventions the audit depends on:
+
+- `charts.rgielen.de/upstream-config-sources` names the files that define the upstream's
+  configuration surface. Without it the audit reports "not checked" rather than "nothing
+  found" — the authoritative list is usually source, not `.env.example`.
+- **Every environment variable in the mapping table is spelled out in full.** Abbreviating
+  a shared prefix (`_ENDPOINT, _REGION`) reads well and cannot be checked.
+
+Run `/analyze-upstream --audit` to check the chart against the version it already ships;
+that is the run that finds standing gaps rather than new ones.
+
 ### Tracking an upstream image
 
 A chart whose `appVersion` follows a container image opts into automatic updates with three

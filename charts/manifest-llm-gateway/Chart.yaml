@@ -4,7 +4,7 @@ description: Manifest, the self-hosted LLM gateway, proxy and dashboard.
 type: application
 
 # The chart's own version. Bumped on every change to this directory.
-version: 2.0.2
+version: 2.0.3
 # The packaged upstream version. Quoted so a two-segment tag stays a string.
 appVersion: "6.19.1"
 
@@ -41,6 +41,10 @@ annotations:
   # Files compared between the old and the new image's commit before a bump is
   # merged unattended. `app.config.ts` is the authoritative environment surface;
   # the two .env.example files document it, and neither is complete on its own.
+  # Files chart_audit.py reads to learn what the upstream actually consumes.
+  # app.config.ts is the authoritative list -- neither .env.example is complete,
+  # and MIGRATION_DATABASE_URL appears in neither.
+  charts.rgielen.de/upstream-config-sources: packages/backend/src/config/app.config.ts,packages/backend/.env.example,docker/.env.example
   # One line on purpose: Chart.yaml here is read line-based so its comments
   # survive an automated bump, and that reader does not follow folded scalars.
   charts.rgielen.de/upstream-watch-paths: docker/.env.example,docker/docker-compose.yml,packages/backend/.env.example,packages/backend/src/config/app.config.ts

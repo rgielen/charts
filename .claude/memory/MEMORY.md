@@ -11,3 +11,4 @@
 - [OPEN: follow-ups](open-followups.md) — the nightly upstream-sync still unobserved, `gh` missing the `workflow` scope, inotify possibly not persistent
 - [Manifest migration paths](manifest-migration-paths.md) — two paths, one lock, one CLI; concurrent migrate.js runs deadlock on CREATE INDEX CONCURRENTLY
 - [Layer 2 of the drift check is planned](upstream-drift-layer-2-planned.md) — designed, not built; the full plan is issue #26, and the model may only escalate
+- [The /analyze-upstream skill](analyze-upstream-skill.md) — interactive companion to the CI drift check, and the intended implementation of layer 2
