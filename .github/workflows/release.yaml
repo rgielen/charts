@@ -60,9 +60,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "$GITHUB_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
-          IFS=',' read -ra names <<< "$CHANGED_CHARTS"
-          for name in "${names[@]}"; do
+          # changed_charts is a comma-separated list of chart *paths*
+          # ("charts/foo"), not bare names. Passing it to `helm show chart`
+          # unprefixed made helm read it as a repository reference and fail with
+          # "repo charts not found".
+          IFS=',' read -ra paths <<< "$CHANGED_CHARTS"
+          for path in "${paths[@]}"; do
+            [[ -n "$path" ]] || continue
+            name="$(basename "$path")"
             # Column-0 match: dependency versions in the same output are indented.
-            version="$(helm show chart "charts/${name}" | awk '/^version:/ { print $2 }')"
-            helm push ".cr-release-packages/${name}-${version}.tgz" "oci://ghcr.io/${REGISTRY_OWNER}/charts"
+            version="$(helm show chart "$path" | awk '/^version:/ { print $2 }')"
+            package=".cr-release-packages/${name}-${version}.tgz"
+            if [[ ! -f "$package" ]]; then
+              echo "::error::Expected $package for changed chart $path, but it was not packaged."
+              exit 1
+            fi
+            helm push "$package" "oci://ghcr.io/${REGISTRY_OWNER}/charts"
           done
