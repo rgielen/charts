@@ -6,7 +6,7 @@ type: application
 # The chart's own version. Bumped on every change to this directory.
 version: 1.0.1
 # The packaged upstream version. Quoted so a two-segment tag stays a string.
-appVersion: "6.19.1"
+appVersion: "6.18.0"
 
 keywords:
   - llm
