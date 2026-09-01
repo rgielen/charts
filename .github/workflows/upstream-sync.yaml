@@ -1,0 +1,163 @@
+name: Upstream Image Sync
+
+# Watches the container image behind every chart that carries the
+# charts.rgielen.de/upstream-image annotation and turns a new upstream release
+# into a new chart release: it bumps appVersion and the chart's own version in
+# one commit, regenerates the README, opens a pull request, runs the full lint
+# and install suite against it, and merges it when the bump is not a major one.
+#
+# The version bump is the whole point. chart-releaser packages every chart but
+# publishes only versions that do not exist yet, so an appVersion change without
+# a version change ships nothing and reports success -- which is exactly why
+# Renovate is not allowed to automerge image updates in this repository.
+
+on:
+  schedule:
+    # Nightly, at an unremarkable time. GitHub delays scheduled runs on the hour.
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+    inputs:
+      # `inputs` is unavailable on a schedule run and evaluates to the empty
+      # string there, which the step below turns into "no --chart argument".
+      chart:
+        description: Limit the check to a single chart directory name.
+        type: string
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: Look for new upstream releases
+    runs-on: ubuntu-latest
+    outputs:
+      updates: ${{ steps.detect.outputs.updates }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install crane
+        env:
+          # renovate: datasource=github-releases depName=google/go-containerregistry
+          CRANE_VERSION: 0.20.6
+        run: |
+          curl -sSfL "https://github.com/google/go-containerregistry/releases/download/v${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin crane
+
+      - name: Detect pending updates
+        id: detect
+        run: |
+          # ${CHART:+...} expands to nothing when CHART is empty or unset, which
+          # is the case on every scheduled run.
+          updates="$(python3 .github/scripts/upstream_sync.py detect ${CHART:+--chart "$CHART"})"
+          echo "updates=$updates" >> "$GITHUB_OUTPUT"
+        env:
+          CHART: ${{ inputs.chart }}
+
+      # Install only: the regeneration happens per branch inside the loop below.
+      - uses: ./.github/actions/helm-docs
+        if: steps.detect.outputs.updates != '[]'
+        with:
+          regenerate: "false"
+
+      - name: Open a pull request per chart
+        if: steps.detect.outputs.updates != '[]'
+        env:
+          UPDATES: ${{ steps.detect.outputs.updates }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          echo "$UPDATES" | jq -c '.[]' | while read -r update; do
+            name=$(jq -r .name <<< "$update")
+            dir=$(jq -r .dir <<< "$update")
+            branch=$(jq -r .branch <<< "$update")
+            app=$(jq -r .appVersion <<< "$update")
+            app_from=$(jq -r .currentAppVersion <<< "$update")
+            chart_version=$(jq -r .chartVersion <<< "$update")
+            chart_from=$(jq -r .currentChartVersion <<< "$update")
+            bump=$(jq -r .bumpType <<< "$update")
+            releases=$(jq -r .releasesUrl <<< "$update")
+
+            if git ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
+              echo "$branch already exists -- leaving it alone."
+              continue
+            fi
+
+            git checkout -B "$branch" origin/${GITHUB_REF_NAME}
+            python3 .github/scripts/upstream_sync.py apply "$dir/Chart.yaml" "$app" "$chart_version"
+            # The version bump changes the README badges, and the docs check in
+            # lint-test.yaml would fail on this very pull request without it.
+            .github/scripts/regenerate-readmes.sh
+
+            git add "$dir"
+            git commit \
+              -m "feat($name): update to upstream $app" \
+              -m "Chart version $chart_from -> $chart_version, appVersion $app_from -> $app."
+            git push origin "$branch"
+
+            body="Upstream \`$app_from\` → \`$app\` (${bump}), chart \`$chart_from\` → \`$chart_version\`."
+            if [ -n "$releases" ]; then
+              body="$body"$'\n\n'"Release notes: $releases"
+            fi
+            if [ "$bump" = "major" ]; then
+              body="$body"$'\n\n'"This is an upstream **major** release, so it is not merged automatically. Check the upstream release notes for settings this chart needs to model differently before merging."
+            fi
+
+            gh pr create \
+              --base "$GITHUB_REF_NAME" \
+              --head "$branch" \
+              --title "feat($name): update to upstream $app" \
+              --body "$body"
+
+            if [ "$bump" = "major" ]; then
+              gh pr edit "$branch" --add-label upstream-major || true
+            fi
+          done
+
+  # Called rather than awaited: a pull request opened with GITHUB_TOKEN does not
+  # trigger `pull_request` workflows, so waiting for lint-test to appear on its
+  # own would wait forever. Running it here keeps a single implementation of the
+  # checks and needs no personal access token.
+  verify:
+    name: Verify ${{ matrix.name }}
+    needs: detect
+    if: needs.detect.outputs.updates != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.detect.outputs.updates) }}
+    uses: ./.github/workflows/lint-test.yaml
+    with:
+      ref: ${{ matrix.branch }}
+
+  merge:
+    name: Merge ${{ matrix.name }}
+    needs: [detect, verify]
+    if: needs.detect.outputs.updates != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.detect.outputs.updates) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Merge
+        if: matrix.bumpType != 'major'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge "${{ matrix.branch }}" --squash --delete-branch
+
+      - name: Leave a major bump for review
+        if: matrix.bumpType == 'major'
+        run: |
+          echo "::notice::${{ matrix.name }} ${{ matrix.appVersion }} is an upstream major release. The pull request stays open for review."

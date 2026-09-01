@@ -6,7 +6,25 @@ on:
       - "charts/**"
       - "ct.yaml"
       - ".helm-docs.gotmpl"
+      - ".github/actions/helm-docs/**"
+      - ".github/scripts/**"
       - ".github/workflows/lint-test.yaml"
+  # Called by upstream-sync.yaml. A pull request opened with GITHUB_TOKEN does not
+  # trigger `pull_request` workflows, so that workflow cannot wait for this one to
+  # run on its own -- it invokes it inside its own run instead. Keeping it a
+  # reusable workflow means lint and install exist exactly once.
+  #
+  # `inputs` is unavailable outside a workflow_call run, and an unavailable
+  # context evaluates to the empty string rather than failing. On a pull_request
+  # run `ref` is therefore "", which is actions/checkout's own default -- the
+  # normal PR checkout. Verified on this workflow's own pull request run.
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to check out. Empty means the default checkout.
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -18,17 +36,18 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: ${{ inputs.ref }}
           # ct compares against target-branch; a shallow clone has nothing to compare to.
           fetch-depth: 0
 
       - uses: azure/setup-helm@v4
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.x"
-          check-latest: true
-
-      - uses: helm/chart-testing-action@v2.7.0
+      # No setup-python: the action installs ct and its python tooling through uv
+      # and brings its own interpreter. Pairing it with `python-version: 3.x` and
+      # `check-latest: true` is what broke this workflow once already -- Python
+      # 3.14 removed `ast.Num`, which the yamale version bundled with ct 3.12
+      # still used, so an unrelated upstream release turned every run red.
+      - uses: helm/chart-testing-action@v2.8.0
 
       - name: Detect changed charts
         id: list-changed
@@ -36,6 +55,11 @@ jobs:
           changed="$(ct list-changed --config ct.yaml)"
           if [[ -n "$changed" ]]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "charts<<EOF"
+              echo "$changed"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
             echo "Changed charts:"
             echo "$changed"
           else
@@ -52,6 +76,27 @@ jobs:
         if: steps.list-changed.outputs.changed == 'true'
         uses: helm/kind-action@v1
 
+      # A chart that needs a backing service to come up ships it under
+      # ci/fixtures/. ct has no pre-install hook, so the fixtures are applied here,
+      # before ct install, and referenced by their in-cluster FQDN from ci/*-values.yaml.
+      - name: Apply CI fixtures
+        if: steps.list-changed.outputs.changed == 'true'
+        env:
+          CHANGED_CHARTS: ${{ steps.list-changed.outputs.charts }}
+        run: |
+          applied=false
+          while read -r chart; do
+            [[ -n "$chart" && -d "$chart/ci/fixtures" ]] || continue
+            echo "Applying fixtures for $chart"
+            kubectl apply -f "$chart/ci/fixtures/"
+            applied=true
+          done <<< "$CHANGED_CHARTS"
+
+          if [[ "$applied" == "true" ]]; then
+            kubectl wait --for=condition=Available --timeout=300s \
+              --all-namespaces --selector charts.rgielen.de/ci-fixture=true deployment
+          fi
+
       - name: Install
         if: steps.list-changed.outputs.changed == 'true'
         run: ct install --config ct.yaml
@@ -61,20 +106,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
 
-      - name: Install helm-docs
-        env:
-          # renovate: datasource=github-releases depName=norwoodj/helm-docs
-          HELM_DOCS_VERSION: 1.14.2
-        run: |
-          curl -sSfL "https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/helm-docs_${HELM_DOCS_VERSION}_Linux_x86_64.tar.gz" \
-            | sudo tar -xz -C /usr/local/bin helm-docs
-
-      - name: Regenerate chart READMEs
-        # Absolute path on purpose: helm-docs resolves --template-files below each
-        # chart directory and silently ignores a path containing "..", falling back
-        # to its built-in template without failing.
-        run: helm-docs --chart-search-root=charts --template-files="$GITHUB_WORKSPACE/.helm-docs.gotmpl"
+      - uses: ./.github/actions/helm-docs
 
       - name: Fail if they differ from what is committed
         run: |

@@ -31,6 +31,10 @@ is not settable before the package exists. Until it is flipped,
 including CI in `k3s-nuc` and `k3s-ze`. There is no API-only path with the current `gh`
 token scopes; do it in the package settings on github.com, or ask the user to.
 
+As of 2026-09-01 the first chart, `manifest-llm-gateway`, is prepared on the branch
+`feat/manifest-llm-gateway`. Merging it is what triggers the first real release, so the
+concrete package to make public will be `ghcr.io/rgielen/charts/manifest-llm-gateway`.
+
 **How to apply:** after the very first chart is merged to `main`, watch the release run,
 then do both steps and verify with a `helm repo add` and a `helm pull` from a clean
 machine before pointing any cluster at this repo. Once both are done and verified, this

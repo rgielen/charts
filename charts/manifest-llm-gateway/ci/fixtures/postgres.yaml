@@ -1,0 +1,71 @@
+# Throwaway PostgreSQL for the `ct install` run in kind. This chart deliberately
+# does not deploy a database, so CI has to provide one; .github/workflows/lint-test.yaml
+# applies everything under ci/fixtures/ before ct install and waits for the
+# charts.rgielen.de/ci-fixture label to report Available.
+#
+# It lives in a fixed namespace because ct installs each release into a random
+# one, and the ci/*-values.yaml files address this by its cluster FQDN.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: manifest-llm-gateway-ci
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: manifest-llm-gateway-ci
+  labels:
+    app: postgres
+    charts.rgielen.de/ci-fixture: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          env:
+            - name: POSTGRES_USER
+              value: manifest
+            - name: POSTGRES_PASSWORD
+              value: manifest
+            - name: POSTGRES_DB
+              value: manifest
+            # The data directory is an emptyDir; without this, initdb refuses to
+            # run in the mount point's lost+found-free but non-empty state on
+            # some CSI drivers.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "manifest"]
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: manifest-llm-gateway-ci
+  labels:
+    charts.rgielen.de/ci-fixture: "true"
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

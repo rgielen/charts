@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "manifest-llm-gateway values",
+  "description": "Constrains the settings whose typos are otherwise only found at runtime, in a crash loop. Everything not listed here is intentionally unconstrained.",
+  "type": "object",
+  "properties": {
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "image": {
+      "type": "object",
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string" },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "type": { "enum": ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"] },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    },
+    "persistence": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "existingClaim": { "type": "string" },
+        "accessModes": {
+          "type": "array",
+          "items": { "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany", "ReadWriteOncePod"] }
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "properties": {
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "publicUrl": {
+          "type": "string",
+          "description": "Empty, or an absolute http/https URL without a trailing slash. The application appends paths such as /api/auth/... to this value, so a trailing slash produces a doubled separator.",
+          "pattern": "^$|^https?://[^/\\s]+(/[^\\s]*[^/\\s])?$"
+        },
+        "mode": { "enum": ["selfhosted", "cloud"] },
+        "disableHsts": { "type": "boolean" },
+        "corsOrigins": { "type": "array", "items": { "type": "string" } },
+        "existingSecret": { "type": "string" },
+        "runMigrationsOnBoot": { "type": "boolean" },
+        "shutdownDrainMs": { "type": "integer", "minimum": 0 },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "secret": {
+              "type": "string",
+              "description": "Empty (then manifest.existingSecret must provide it) or at least 32 characters.",
+              "pattern": "^(|.{32,})$"
+            },
+            "encryptionKey": {
+              "type": "string",
+              "pattern": "^(|.{32,})$"
+            }
+          }
+        },
+        "database": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "Empty (then manifest.existingSecret must provide it) or a postgresql:// connection string.",
+              "pattern": "^$|^postgres(ql)?://"
+            },
+            "poolMax": { "type": "integer", "minimum": 1 },
+            "authPoolMax": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "proxy": {
+          "type": "object",
+          "properties": {
+            "providerTimeoutMs": { "type": "integer", "minimum": 1 },
+            "streamWarmupMs": { "type": "integer", "minimum": 1 },
+            "codexSemanticOutputTimeoutMs": { "type": "integer", "minimum": 1 },
+            "concurrencyMax": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "recordings": {
+          "type": "object",
+          "properties": {
+            "storage": { "enum": ["auto", "filesystem", "s3"] },
+            "filesystemPath": { "type": "string", "pattern": "^/" },
+            "retentionDays": {
+              "description": "Empty for the upstream default of 365 days.",
+              "oneOf": [
+                { "type": "string", "pattern": "^$|^[0-9]+$" },
+                { "type": "integer", "minimum": 1 }
+              ]
+            },
+            "s3": {
+              "type": "object",
+              "properties": {
+                "forcePathStyle": { "type": "boolean" }
+              }
+            }
+          }
+        },
+        "email": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "description": "Empty to disable outgoing mail entirely.",
+              "enum": ["", "resend", "mailgun", "sendgrid"]
+            }
+          }
+        },
+        "throttle": {
+          "type": "object",
+          "properties": {
+            "ttl": { "type": "integer", "minimum": 1 },
+            "limit": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "telemetry": {
+          "type": "object",
+          "properties": {
+            "disabled": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "extraEnv": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": { "name": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "extraObjects": {
+      "type": "array",
+      "items": { "type": "object" }
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{{ .Chart.Name }} {{ .Chart.AppVersion }} has been deployed as release {{ .Release.Name }}.
+
+{{- $publicUrl := include "manifest-llm-gateway.publicUrl" . }}
+
+1. Reach the dashboard:
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+{{- $host := .host }}
+{{- range .paths }}
+     http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host }}{{ .path }}
+{{- end }}
+{{- end }}
+{{- else if .Values.httpRoute.enabled }}
+{{- range .Values.httpRoute.hostnames }}
+     https://{{ . }}
+{{- end }}
+{{- else }}
+     kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "manifest-llm-gateway.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+     http://127.0.0.1:{{ .Values.service.port }}
+{{- end }}
+
+2. On first boot the setup wizard at /setup asks you to create the admin account.
+   There are no default credentials. The password needs at least 8 characters.
+
+3. Add a provider in the dashboard, take the generated harness key (it starts
+   with `mnfst_`), and point your OpenAI-compatible client at
+   {{ if $publicUrl }}{{ $publicUrl }}{{ else }}<your URL>{{ end }}/v1
+
+{{- if not $publicUrl }}
+
+WARNING: manifest.publicUrl is empty and no Ingress host could be derived, so
+BETTER_AUTH_URL is unset. Logins and OAuth callbacks only work reliably when it
+matches the URL the browser actually uses. Set manifest.publicUrl.
+{{- else if not (hasPrefix "https://" $publicUrl) }}
+
+NOTE: manifest.publicUrl resolves to {{ $publicUrl }}, which is not https. The
+application cannot send HSTS and logs a warning on every boot. Terminate TLS in
+front of it, or set manifest.disableHsts=true on an HTTP-only LAN install.
+{{- end }}
+
+{{- if and (gt (int .Values.replicaCount) 1) .Values.manifest.runMigrationsOnBoot }}
+
+WARNING: replicaCount is {{ .Values.replicaCount }} with runMigrationsOnBoot
+still true, so every replica runs the database migrations at the same time. Run
+one replica for the migration, or set manifest.runMigrationsOnBoot=false.
+{{- end }}
+
+{{- if and (gt (int .Values.replicaCount) 1) .Values.persistence.enabled }}
+
+WARNING: replicaCount is {{ .Values.replicaCount }} and request recordings use a
+ReadWriteOnce volume, which the replicas cannot share. Use S3-compatible storage
+(manifest.recordings.s3) for more than one replica.
+{{- end }}
+
+{{- if and (not .Values.persistence.enabled) (not .Values.manifest.recordings.s3.bucket) }}
+
+NOTE: Request recordings have no durable storage. Message metadata is kept in the
+database either way, but recorded message bodies land in an emptyDir and are
+gone on every restart. Enable persistence, or configure manifest.recordings.s3.
+{{- end }}
