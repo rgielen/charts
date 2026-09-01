@@ -13,7 +13,7 @@ apiVersion: v2
 name: <name>
 description: One sentence, shown in the repository index and on the chart page.
 type: application
-version: 0.1.0        # the chart's own version
+version: 1.0.0        # the chart's own version -- charts start at 1.0.0 here
 appVersion: "1.2.3"   # the packaged upstream version, quoted
 maintainers:
   - name: rgielen
@@ -112,6 +112,11 @@ Every pull request that touches a chart must raise that chart's `version` in
 `Chart.yaml`. `ct lint` enforces it in CI, and for good reason: the release workflow
 packages all charts but only publishes versions that do not exist yet. A chart edited
 without a bump passes through the release job without an error and simply never ships.
+
+**Charts in this repository start at `1.0.0`, not `0.1.0`.** A `0.x` version tells
+consumers the values interface may move under them at any time, which is the opposite of
+what a pinned `targetRevision` in ArgoCD is for. A chart is either fit to install or it is
+not published; if the interface later has to break, that is what a major bump is for.
 
 Use the change to pick the increment:
 
