@@ -74,8 +74,10 @@ def list_tags(image: str) -> list[str]:
 def bump_chart_version(current: str, kind: str) -> str:
     major, minor, patch = parse_version(current)
     if kind == "major":
-        # A 0.x chart stays 0.x: signalling 1.0.0 is a statement about the
-        # chart's own stability, not about the software it packages.
+        # Charts here start at 1.0.0 by convention, so the second branch should
+        # never be reached. It stays as a guard: bumping a 0.x chart to 1.0.0
+        # would be a statement about the chart's own stability, not about the
+        # software it packages.
         return f"{major + 1}.0.0" if major > 0 else f"{major}.{minor + 1}.0"
     if kind == "minor":
         return f"{major}.{minor + 1}.0"

@@ -29,13 +29,10 @@ and failed on that first run. Fixed in `0d58132`, but the fix cannot retroactive
 skipped. So 0.1.0 is currently reachable over GitHub Pages only, contradicting the promise
 in `README.md` that both targets carry identical content.
 
-Two ways out, neither taken yet:
-
-1. A classic PAT with `write:packages` for a one-off
-   `helm registry login ghcr.io && helm push`. The `gh` CLI token in use here has
-   `repo, read:org, gist, admin:public_key` and cannot do it.
-2. Let the next release (any chart change, or the first `upstream-sync` bump) populate OCI
-   and accept that 0.1.0 never lands there.
+**Decided:** 0.1.0 stays Pages-only and is treated as a pre-release. The chart was bumped
+to 1.0.0 straight away, and that release populates both targets. See
+[[charts-start-at-1-0-0]] — new charts start at 1.0.0 from now on, so this gap is a
+one-off from the very first release and needs no note in the README.
 
 **And after the first successful push:** a GHCR package is **private** on creation, and
 visibility cannot be set before the package exists. Until it is flipped to public in the

@@ -129,6 +129,9 @@ prompted them — never left in the working tree.
 ## Conventions
 
 - Chart `apiVersion: v2`, `type: application` unless it is a library chart.
+- A new chart starts at `version: 1.0.0`. A `0.x` chart tells consumers the values
+  interface may move at any time, which defeats the pinned `targetRevision` those
+  consumers rely on.
 - Every key in `values.yaml` carries a comment; that comment is the published
   documentation.
 - Prefer `values.schema.json` for anything with a constrained shape — it turns a typo in
