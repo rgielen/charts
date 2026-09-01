@@ -1,0 +1,84 @@
+name: Lint and Test Charts
+
+on:
+  pull_request:
+    paths:
+      - "charts/**"
+      - "ct.yaml"
+      - ".helm-docs.gotmpl"
+      - ".github/workflows/lint-test.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  lint-test:
+    name: ct lint and install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # ct compares against target-branch; a shallow clone has nothing to compare to.
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+          check-latest: true
+
+      - uses: helm/chart-testing-action@v2.7.0
+
+      - name: Detect changed charts
+        id: list-changed
+        run: |
+          changed="$(ct list-changed --config ct.yaml)"
+          if [[ -n "$changed" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Changed charts:"
+            echo "$changed"
+          else
+            echo "No chart changes detected -- lint and install are skipped."
+          fi
+
+      - name: Lint
+        if: steps.list-changed.outputs.changed == 'true'
+        run: ct lint --config ct.yaml
+
+      # Only spun up when there is something to install: starting a cluster for an
+      # unchanged tree costs a minute per PR and proves nothing.
+      - name: Create kind cluster
+        if: steps.list-changed.outputs.changed == 'true'
+        uses: helm/kind-action@v1
+
+      - name: Install
+        if: steps.list-changed.outputs.changed == 'true'
+        run: ct install --config ct.yaml
+
+  docs:
+    name: helm-docs is up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install helm-docs
+        env:
+          # renovate: datasource=github-releases depName=norwoodj/helm-docs
+          HELM_DOCS_VERSION: 1.14.2
+        run: |
+          curl -sSfL "https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/helm-docs_${HELM_DOCS_VERSION}_Linux_x86_64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin helm-docs
+
+      - name: Regenerate chart READMEs
+        # Absolute path on purpose: helm-docs resolves --template-files below each
+        # chart directory and silently ignores a path containing "..", falling back
+        # to its built-in template without failing.
+        run: helm-docs --chart-search-root=charts --template-files="$GITHUB_WORKSPACE/.helm-docs.gotmpl"
+
+      - name: Fail if they differ from what is committed
+        run: |
+          if ! git diff --exit-code -- charts; then
+            echo "::error::Chart READMEs are stale. Run the helm-docs command from CONTRIBUTING.md and commit the result."
+            exit 1
+          fi

@@ -1,0 +1,21 @@
+# Helm build artefacts
+*.tgz
+charts/*/charts/
+.cr-release-packages/
+.cr-index/
+
+# Local test output
+*.orig
+*.rej
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### VS Code ###
+.vscode/
+
+### macOS ###
+.DS_Store

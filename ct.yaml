@@ -1,0 +1,11 @@
+# chart-testing configuration -- https://github.com/helm/chart-testing
+remote: origin
+target-branch: main
+chart-dirs:
+  - charts
+# Every chart change must carry a version bump: without one, chart-releaser skips
+# the chart on main and the change never ships. Failing here makes that visible in
+# the pull request instead.
+check-version-increment: true
+validate-maintainers: false
+helm-extra-args: --timeout 600s

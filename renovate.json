@@ -1,0 +1,39 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "dependencyDashboard": true,
+  "helmv3": {
+    "description": "Subchart dependencies declared in any chart's Chart.yaml.",
+    "managerFilePatterns": ["/^charts/[^/]+/Chart\\.yaml$/"]
+  },
+  "helm-values": {
+    "description": "Container images pinned in chart defaults. Scoped to the chart tree rather than a hand-kept list of files, so a chart added later is covered without a config change.",
+    "managerFilePatterns": ["/^charts/[^/]+/values\\.yaml$/"]
+  },
+  "customManagers": [
+    {
+      "description": "helm-docs is installed from a release tarball in the lint workflow, which the github-actions manager only reads for `uses:` lines. Without this the pinned version would silently rot.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "matchStrings": ["#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\n\\s*[A-Z_]+:\\s*[\"']?(?<currentValue>[^\\s\"']+)"],
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Chart dependency and image bumps always need a chart version bump alongside them, which Renovate cannot do -- so no automerge here, ever. The pull request is the place that decision gets made.",
+      "matchManagers": ["helmv3", "helm-values"],
+      "automerge": false,
+      "prBodyNotes": [
+        ":warning: **Bump the chart's own `version:` in `Chart.yaml` in this branch before merging.** Without it, chart-releaser skips the chart on `main` and this update never reaches consumers."
+      ]
+    },
+    {
+      "description": "Workflow action bumps are mechanical and touch no published artefact.",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": false
+    }
+  ]
+}

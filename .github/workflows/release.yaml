@@ -1,0 +1,68 @@
+name: Release Charts
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "charts/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write # chart-releaser creates GitHub releases and pushes to gh-pages
+  packages: write # helm push to ghcr.io
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # chart-releaser errors out on an empty charts directory, which is the state
+      # of this repository until the first chart lands.
+      - name: Any charts to release?
+        id: guard
+        run: |
+          if compgen -G "charts/*/Chart.yaml" > /dev/null; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No chart found under charts/ -- nothing to release."
+          fi
+
+      - name: Configure Git identity
+        if: steps.guard.outputs.found == 'true'
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR_ID+$GITHUB_ACTOR@users.noreply.github.com"
+
+      - uses: azure/setup-helm@v4
+        if: steps.guard.outputs.found == 'true'
+
+      # Packages every chart, but only creates a release for versions that do not
+      # exist yet. A chart edited without a version bump is silently skipped here.
+      - name: Run chart-releaser
+        id: cr
+        if: steps.guard.outputs.found == 'true'
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          charts_dir: charts
+          skip_existing: true
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push released charts to ghcr.io
+        if: steps.cr.outputs.changed_charts != ''
+        env:
+          CHANGED_CHARTS: ${{ steps.cr.outputs.changed_charts }}
+          REGISTRY_OWNER: ${{ github.repository_owner }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GITHUB_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          IFS=',' read -ra names <<< "$CHANGED_CHARTS"
+          for name in "${names[@]}"; do
+            # Column-0 match: dependency versions in the same output are indented.
+            version="$(helm show chart "charts/${name}" | awk '/^version:/ { print $2 }')"
+            helm push ".cr-release-packages/${name}-${version}.tgz" "oci://ghcr.io/${REGISTRY_OWNER}/charts"
+          done
