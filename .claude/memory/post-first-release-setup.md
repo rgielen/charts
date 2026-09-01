@@ -1,41 +1,46 @@
 ---
 name: post-first-release-setup
-description: "OPEN: two one-time settings outside the repo are still unconfigured and only become possible after the first chart release"
+description: "OPEN: publishing works over GitHub Pages and is verified; the ghcr.io package for manifest-llm-gateway 0.1.0 was never pushed and is still missing"
 metadata:
   type: project
 ---
 
-As of 2026-09-01 the repository exists at `github.com/rgielen/charts` (public) and is a
-scaffold: CI, docs and config are committed, but `charts/` is empty. A manual
-`workflow_dispatch` run of Release Charts confirmed the empty-charts guard — it is green
-and skips every publishing step — so **nothing has ever actually been published, and two
-pieces of one-time setup are still open.** Neither can be done in advance; both need
-artefacts that only the first real release creates. Until then the publishing side of
-this repo is untested end to end.
+As of 2026-09-01 `rgielen/charts` has published its first chart. What is settled and what
+is not:
 
-**1. GitHub Pages must be switched to branch `gh-pages`.**
-`helm/chart-releaser-action` creates that branch on the first successful release. Only
-after it exists:
+**Done and verified.** `manifest-llm-gateway` 0.1.0 exists as a GitHub release, is listed
+in `index.yaml` on `gh-pages`, and `helm repo add rgielen https://rgielen.github.io/charts`
+→ `helm search repo` → `helm pull` works from a clean Helm config. Pages was already
+enabled on branch `gh-pages` (`gh api repos/rgielen/charts/pages` reports
+`status: built`), so the step this memory previously listed as open never needed doing by
+hand.
 
-```sh
-gh api -X POST repos/rgielen/charts/pages -f "source[branch]=gh-pages" -f "source[path]=/"
-```
+**Correction to what this memory used to claim:** `helm/chart-releaser-action` does **not**
+create the `gh-pages` branch. The very first release run failed with
+`fatal: invalid reference: origin/gh-pages` and published nothing at all. The branch was
+seeded manually as an orphan branch holding only `.nojekyll` and a README. Any future
+chart repository built this way needs that branch to exist *before* the first release.
 
-Without it, `helm repo add rgielen https://rgielen.github.io/charts` returns 404 even
-though the release run was green and `index.yaml` is sitting on the branch.
+**Still open: the OCI package.** `oci://ghcr.io/rgielen/charts/manifest-llm-gateway` does
+not exist — the push step of `release.yaml` had a bug (it treated
+chart-releaser's `changed_charts` output, which is a list of chart *paths*, as bare names)
+and failed on that first run. Fixed in `0d58132`, but the fix cannot retroactively publish
+0.1.0: with `skip_existing`, a re-run reports no changed charts and the push step is
+skipped. So 0.1.0 is currently reachable over GitHub Pages only, contradicting the promise
+in `README.md` that both targets carry identical content.
 
-**2. The GHCR package must be made public.**
-A package pushed to `ghcr.io` for the first time is **private**, and package visibility
-is not settable before the package exists. Until it is flipped,
-`helm pull oci://ghcr.io/rgielen/charts/<chart>` fails with a 403 for everyone —
-including CI in `k3s-nuc` and `k3s-ze`. There is no API-only path with the current `gh`
-token scopes; do it in the package settings on github.com, or ask the user to.
+Two ways out, neither taken yet:
 
-As of 2026-09-01 the first chart, `manifest-llm-gateway`, is prepared on the branch
-`feat/manifest-llm-gateway`. Merging it is what triggers the first real release, so the
-concrete package to make public will be `ghcr.io/rgielen/charts/manifest-llm-gateway`.
+1. A classic PAT with `write:packages` for a one-off
+   `helm registry login ghcr.io && helm push`. The `gh` CLI token in use here has
+   `repo, read:org, gist, admin:public_key` and cannot do it.
+2. Let the next release (any chart change, or the first `upstream-sync` bump) populate OCI
+   and accept that 0.1.0 never lands there.
 
-**How to apply:** after the very first chart is merged to `main`, watch the release run,
-then do both steps and verify with a `helm repo add` and a `helm pull` from a clean
-machine before pointing any cluster at this repo. Once both are done and verified, this
-memory should be replaced by a short note that publishing works, or deleted.
+**And after the first successful push:** a GHCR package is **private** on creation, and
+visibility cannot be set before the package exists. Until it is flipped to public in the
+package settings on github.com, `helm pull oci://...` returns 403 for everyone, including
+CI in `k3s-nuc` and `k3s-ze`.
+
+**How to apply:** once OCI is populated and public, verify with a `helm pull` from a clean
+config and then delete this memory. See [[commit-memory-with-the-work]].
