@@ -22,7 +22,7 @@
 <p class="crumbs"><a href="../">Charts</a> <span>/</span> manifest-llm-gateway</p>
 <h1>manifest-llm-gateway</h1>
 <p class="lede">Manifest, the self-hosted LLM gateway, proxy and dashboard.</p>
-<p class="badges"><span class="badge"><span>Chart</span><b>2.2.1</b></span><span class="badge"><span>App</span><b>6.20.0</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
+<p class="badges"><span class="badge"><span>Chart</span><b>2.2.2</b></span><span class="badge"><span>App</span><b>6.20.0</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
 <p class="page-links"><a href="https://manifest.build">manifest.build</a></p>
 
 <div class="layout">
@@ -57,10 +57,10 @@ Kubernetes.</p>
 <p>From the Helm repository:</p>
 <pre><code class="language-bash">helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.2.1
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.2.2
 </code></pre>
 <p>Or directly from the OCI registry:</p>
-<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.2.1
+<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.2.2
 </code></pre>
 <h2 id="source-code">Source Code<a class="anchor" href="#source-code" title="Permanent link">#</a></h2>
 <ul>
@@ -1151,7 +1151,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.2.1
+    targetRevision: 2.2.2
     helm:
       valuesObject:
         manifest:
@@ -1443,6 +1443,13 @@ re-released with different content.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.2.2"><code>2.2.2</code></a></td>
+<td><code>6.20.0</code></td>
+<td>2026-09-02</td>
+<td><a href="https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.2.2/manifest-llm-gateway-2.2.2.tgz"><code>.tgz</code></a></td>
+<td><code>04efd39d1d817e89511…</code></td>
+</tr>
 <tr>
 <td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.2.1"><code>2.2.1</code></a></td>
 <td><code>6.20.0</code></td>
