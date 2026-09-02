@@ -8,6 +8,10 @@ Nothing here is specific to any one cluster. The charts are written for GitOps
 consumption — see [Use from ArgoCD](#use-from-argocd) — but work equally well with plain
 `helm install`.
 
+📖 **[rgielen.github.io/charts](https://rgielen.github.io/charts/)** — the same charts to
+browse, with each one's documentation and every version ever published. Rendered from the
+repository index on each release, so it cannot fall behind.
+
 ## Available charts
 
 | Chart | Description |
@@ -17,7 +21,8 @@ consumption — see [Use from ArgoCD](#use-from-argocd) — but work equally wel
 No version column on purpose: charts are released independently and often
 automatically, and nothing here would keep a hand-written number honest. Each
 chart's README carries its current version as a badge, `helm search repo rgielen`
-lists what is published, and every released version is also a
+lists what is published, the [chart pages](https://rgielen.github.io/charts/) carry the
+full published history, and every released version is also a
 [GitHub release](https://github.com/rgielen/charts/releases) with the packaged
 `.tgz` attached.
 

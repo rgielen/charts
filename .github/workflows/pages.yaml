@@ -1,0 +1,88 @@
+name: Publish Pages Site
+
+on:
+  # Called by release.yaml as its last job. Ordering is the whole point: the
+  # index has to carry the release before the site is rendered from it, and only
+  # the release run knows when that is true. A `workflow_run` trigger would run
+  # eventually; this runs after.
+  workflow_call:
+  workflow_dispatch:
+  # Chart changes reach the site through release.yaml -- every one of them needs
+  # a chart version bump, so every one of them is a release. What is left is the
+  # site's own source, which no release touches.
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/scripts/build_pages.py"
+      - ".github/scripts/requirements.txt"
+      - ".github/site/**"
+      - ".github/workflows/pages.yaml"
+
+permissions:
+  contents: write # pushes the rendered pages to gh-pages
+
+# Two runs writing gh-pages at once would leave one of them rejected. Queue them
+# instead of cancelling: a cancelled run is a site that silently stayed stale.
+concurrency:
+  group: gh-pages-site
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Render and publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check out the published branch
+        uses: actions/checkout@v7
+        with:
+          ref: gh-pages
+          path: .gh-pages
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+          cache: pip
+          cache-dependency-path: .github/scripts/requirements.txt
+
+      - name: Install the renderer's dependencies
+        run: pip install --requirement .github/scripts/requirements.txt
+
+      # index.yaml is read, never written -- it belongs to chart-releaser.
+      - name: Render the site
+        run: |
+          python .github/scripts/build_pages.py \
+            --index .gh-pages/index.yaml \
+            --output .gh-pages
+
+      - name: Commit and push
+        working-directory: .gh-pages
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR_ID+$GITHUB_ACTOR@users.noreply.github.com"
+
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "The rendered site is unchanged."
+            exit 0
+          fi
+
+          git add -A
+          git commit -m "docs: render the site for ${GITHUB_SHA:0:7}"
+
+          # A release in another run can land on gh-pages between the checkout
+          # above and this push. Rebasing onto it never conflicts: that run wrote
+          # index.yaml, this one writes only files it renders from scratch. The
+          # site it just rendered is then one index behind, and that run's own
+          # pages job -- queued behind this one by the concurrency group above --
+          # renders it again from the newer index.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:gh-pages; then
+              exit 0
+            fi
+            echo "Push rejected, rebasing onto gh-pages (attempt $attempt)."
+            git pull --rebase origin gh-pages
+          done
+          echo "::error::Could not push the rendered site after three attempts."
+          exit 1
