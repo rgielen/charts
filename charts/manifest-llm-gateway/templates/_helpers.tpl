@@ -187,6 +187,7 @@ Non-sensitive environment, as `key: "value"` lines for a ConfigMap.
 
 {{- include "manifest-llm-gateway.put" (list $d "PROVIDER_TIMEOUT_MS" $m.proxy.providerTimeoutMs) }}
 {{- include "manifest-llm-gateway.put" (list $d "STREAM_WARMUP_MS" $m.proxy.streamWarmupMs) }}
+{{- include "manifest-llm-gateway.put" (list $d "STREAM_IDLE_TIMEOUT_MS" $m.proxy.streamIdleTimeoutMs) }}
 {{- include "manifest-llm-gateway.put" (list $d "CODEX_SEMANTIC_OUTPUT_TIMEOUT_MS" $m.proxy.codexSemanticOutputTimeoutMs) }}
 {{- include "manifest-llm-gateway.put" (list $d "MANIFEST_CONCURRENCY_MAX" $m.proxy.concurrencyMax) }}
 {{- include "manifest-llm-gateway.put" (list $d "OLLAMA_HOST" $m.ollamaHost) }}

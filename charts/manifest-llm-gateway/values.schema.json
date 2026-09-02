@@ -62,7 +62,10 @@
           "description": "Empty, or an absolute http/https URL without a trailing slash. The application appends paths such as /api/auth/... to this value, so a trailing slash produces a doubled separator.",
           "pattern": "^$|^https?://[^/\\s]+(/[^\\s]*[^/\\s])?$"
         },
-        "mode": { "enum": ["selfhosted", "cloud"] },
+        "mode": {
+          "description": "`local` is the upstream's legacy alias for `selfhosted`; detect-self-hosted.ts treats them identically.",
+          "enum": ["selfhosted", "local", "cloud"]
+        },
         "disableHsts": { "type": "boolean" },
         "corsOrigins": { "type": "array", "items": { "type": "string" } },
         "existingSecret": { "type": "string" },
@@ -117,6 +120,7 @@
           "properties": {
             "providerTimeoutMs": { "type": "integer", "minimum": 1 },
             "streamWarmupMs": { "type": "integer", "minimum": 1 },
+            "streamIdleTimeoutMs": { "type": "integer", "minimum": 1 },
             "codexSemanticOutputTimeoutMs": { "type": "integer", "minimum": 1 },
             "concurrencyMax": { "type": "integer", "minimum": 1 }
           }

@@ -1,6 +1,6 @@
 # manifest-llm-gateway
 
-![Version: 2.1.0](https://img.shields.io/badge/Version-2.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.20.0](https://img.shields.io/badge/AppVersion-6.20.0-informational?style=flat-square)
+![Version: 2.2.0](https://img.shields.io/badge/Version-2.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.20.0](https://img.shields.io/badge/AppVersion-6.20.0-informational?style=flat-square)
 
 Manifest, the self-hosted LLM gateway, proxy and dashboard.
 
@@ -41,13 +41,13 @@ From the Helm repository:
 ```bash
 helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.1.0
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.2.0
 ```
 
 Or directly from the OCI registry:
 
 ```bash
-helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.1.0
+helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.2.0
 ```
 
 ## Source Code
@@ -141,7 +141,7 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.corsOrigins | list | `[]` | Extra browser origins allowed to call the gateway (`WINGMAN_CORS_ORIGINS`). Joined with commas. |
 | manifest.disableHsts | bool | `false` | Silence the boot warning about the missing HSTS header on a plain-http deployment (`MANIFEST_DISABLE_HSTS`). Prefer a real `https://` `publicUrl` anywhere reachable from the internet. |
 | manifest.existingSecret | string | `""` | Name of an existing Secret holding sensitive settings. Its keys are the upstream environment variable names (`BETTER_AUTH_SECRET`, `DATABASE_URL`, `EMAIL_API_KEY`, ...) and it is mounted with `envFrom`. Takes precedence over the plain values below, which makes it the right choice for GitOps: keep the Secret in sealed-secrets or external-secrets and leave the values here empty. |
-| manifest.mode | string | `"selfhosted"` | Deployment mode (`MANIFEST_MODE`). `selfhosted` relaxes the SSRF rules so private and plain-http provider URLs are allowed. Set explicitly rather than left to auto-detection, exactly as the upstream compose file does. |
+| manifest.mode | string | `"selfhosted"` | Deployment mode (`MANIFEST_MODE`). `selfhosted` relaxes the SSRF rules so private and plain-http provider URLs are allowed. Set explicitly rather than left to auto-detection, exactly as the upstream compose file does. `local` is the upstream's legacy alias for `selfhosted` and behaves identically; prefer `selfhosted` for anything new. |
 | manifest.port | int | `2099` | Port the application listens on (`PORT`). |
 | manifest.publicUrl | string | derived from the first `ingress.hosts` entry when an Ingress is enabled | Public URL the dashboard is reached at (`BETTER_AUTH_URL`). Must match what the browser actually uses, or logins and OAuth callbacks break. No trailing slash — the application appends paths such as `/api/auth/...` to this value. Serve it over https wherever it is reachable from the internet: the application only sends HSTS for an `https://` origin. |
 
@@ -157,6 +157,7 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.proxy.codexSemanticOutputTimeoutMs | int | `60000` | Time in ms to wait for deliverable text or tool output from ChatGPT Codex (`CODEX_SEMANTIC_OUTPUT_TIMEOUT_MS`). |
 | manifest.proxy.concurrencyMax | int | `10` | Per-tenant limit of concurrent in-flight requests per backend process (`MANIFEST_CONCURRENCY_MAX`). |
 | manifest.proxy.providerTimeoutMs | int | `180000` | Per-attempt timeout in ms for upstream provider requests (`PROVIDER_TIMEOUT_MS`). Keep it below your client's timeout so the fallback chain still has room to run. |
+| manifest.proxy.streamIdleTimeoutMs | int | `180000` | Maximum silence in ms between two chunks of an upstream streaming response before the request fails with HTTP 504 (`STREAM_IDLE_TIMEOUT_MS`). Distinct from `streamWarmupMs`, which only covers the wait for the *first* chunk: raise this one for agent workloads that think for a long time between tokens. |
 | manifest.proxy.streamWarmupMs | int | `15000` | Time in ms to wait for the first chunk of a streaming response before treating it as stalled and failing over (`STREAM_WARMUP_MS`). |
 
 ### Manifest: database
@@ -434,7 +435,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.1.0
+    targetRevision: 2.2.0
     helm:
       valuesObject:
         manifest:
@@ -481,7 +482,10 @@ in the left column.
 | `REQUEST_RECORDING_S3_FORCE_PATH_STYLE` | `manifest.recordings.s3.forcePathStyle` |
 | `REQUEST_RECORDING_S3_ACCESS_KEY_ID` | `manifest.recordings.s3.accessKeyId` *(secret)* |
 | `REQUEST_RECORDING_S3_SECRET_ACCESS_KEY` | `manifest.recordings.s3.secretAccessKey` *(secret)* |
-| `PROVIDER_TIMEOUT_MS`, `STREAM_WARMUP_MS`, `CODEX_SEMANTIC_OUTPUT_TIMEOUT_MS` | `manifest.proxy.providerTimeoutMs`, `.streamWarmupMs`, `.codexSemanticOutputTimeoutMs` |
+| `PROVIDER_TIMEOUT_MS` | `manifest.proxy.providerTimeoutMs` |
+| `STREAM_WARMUP_MS` | `manifest.proxy.streamWarmupMs` |
+| `STREAM_IDLE_TIMEOUT_MS` | `manifest.proxy.streamIdleTimeoutMs` |
+| `CODEX_SEMANTIC_OUTPUT_TIMEOUT_MS` | `manifest.proxy.codexSemanticOutputTimeoutMs` |
 | `MANIFEST_CONCURRENCY_MAX` | `manifest.proxy.concurrencyMax` |
 | `OLLAMA_HOST` | `manifest.ollamaHost` |
 | `CREDITS_BASE_URL`, `CREDITS_AUTO_PROVISION_ALLOWLIST`, `CREDITS_GEMINI_FREE_MAX_BUDGET` | `manifest.credits.baseUrl`, `.autoProvisionAllowlist`, `.geminiFreeMaxBudget` |
@@ -504,6 +508,23 @@ in the left column.
 
 Every variable is spelled out in full rather than abbreviated with a shared prefix, so
 `.github/scripts/chart_audit.py` can check this table for completeness instead of guessing.
+
+### Deliberately not modelled
+
+The upstream reads these and this chart does not expose them. They are decisions, not gaps
+— `extraEnv` reaches any of them if you disagree.
+
+| Setting | Why not |
+| ------- | ------- |
+| `BACKFILL_DATABASE_URL` | The third fallback after `MIGRATION_DATABASE_URL`, which `manifest.database.migrationUrl` already sets, so the backfill resolver is already satisfied. Cloud-only besides. |
+| `PLUGIN_OTLP_ENDPOINT` | Documented in the upstream's `.env.example` but read nowhere in the server. |
+| `ERROR_PAGE_PUSH_SECRET` | Gates an internal endpoint for publishing curated error pages. Empty rejects every write, which is the right state for a self-hosted install. |
+| `MANIFEST_PUBLIC_STATS` | Exposes aggregate `/api/v1/public/*` endpoints **without authentication**. The upstream marks it as being for its own marketing site. |
+| `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `NOTIFICATION_FROM_EMAIL` | Legacy fallbacks superseded by the `EMAIL_*` settings above. Modelling both invites a configuration that contradicts itself. |
+| `BIND_ADDRESS`, `NODE_ENV` | Already set inside the image. Overriding them only adds a way to break the deployment. |
+| `CORS_ORIGIN`, `FRONTEND_PORT`, `MANIFEST_FRONTEND_DIR`, `MANIFEST_EMBEDDED` | Development-only; inert in a production image. |
+| `STRIPE_SECRET_KEY`, `STRIPE_PRO_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`, `PLAN_LIMIT_FREE_REQUESTS`, `PLAN_LIMIT_PRO_REQUESTS`, `PLAN_REQUEST_QUOTA_RESET_AT`, `ANNOUNCE_APP_URL`, `DOCTOR_TUTORIAL_URL` | Billing and marketing for the hosted service. |
+| `HOST_BIND_ADDRESS`, `HOST_PORT`, `MANIFEST_VERSION`, `POSTGRES_PASSWORD` | Compose-specific. Their Kubernetes equivalents are `service`, `ingress`, `image.tag` and your database's own configuration. |
 
 A value left empty is not passed to the container at all. That matters: the application
 reads several settings as `Number(env ?? default)`, where an empty string becomes `0`
