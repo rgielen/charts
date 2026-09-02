@@ -1,0 +1,441 @@
+/*
+ * Styles for the generated Helm repository pages.
+ *
+ * Copied verbatim onto gh-pages by .github/scripts/build_pages.py. Self-
+ * contained on purpose: the pages load no font, no script and no framework, so
+ * a chart page is one HTML request plus this file, and nothing about it can
+ * break when a CDN does.
+ */
+
+:root {
+  --bg: #fbfbfa;
+  --surface: #ffffff;
+  --border: #e3e1dc;
+  --text: #1d1c1a;
+  --muted: #6b6862;
+  --accent: #2c5f7c;
+  --accent-soft: #eaf1f5;
+  --code-bg: #f4f3f0;
+  --warn: #8a5a12;
+  --warn-bg: #fdf5e6;
+  --warn-border: #e8d3a8;
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181a;
+    --surface: #1d2023;
+    --border: #31363b;
+    --text: #e6e4e0;
+    --muted: #9aa0a6;
+    --accent: #8ec5e3;
+    --accent-soft: #1f2c34;
+    --code-bg: #24282c;
+    --warn: #e5bd76;
+    --warn-bg: #2a2318;
+    --warn-border: #4a3d24;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.875em;
+}
+
+code {
+  background: var(--code-bg);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1.1rem;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+img {
+  max-width: 100%;
+}
+
+/* Header and footer ------------------------------------------------------- */
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.brand {
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.site-nav a {
+  margin-left: 1rem;
+  font-size: 0.9rem;
+}
+
+.site-footer {
+  max-width: 68rem;
+  margin: 4rem auto 0;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+main {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 0;
+}
+
+h1 {
+  font-size: 2rem;
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
+}
+
+.lede {
+  font-size: 1.1rem;
+  color: var(--muted);
+  margin-top: 0;
+  max-width: 46rem;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.crumbs {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+}
+
+.crumbs span {
+  margin: 0 0.35rem;
+}
+
+/* Badges and chips -------------------------------------------------------- */
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.7rem;
+  font-size: 0.8rem;
+  background: var(--surface);
+}
+
+.badge span {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+}
+
+.badge b {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+}
+
+.badge.warn {
+  color: var(--warn);
+  border-color: var(--warn-border);
+  background: var(--warn-bg);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.5rem 0;
+}
+
+.chip {
+  font-size: 0.72rem;
+  color: var(--muted);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 0.1rem 0.45rem;
+}
+
+/* Install box and notices ------------------------------------------------- */
+
+.install {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin: 2rem 0;
+}
+
+.install h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+.install p {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.notice {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.9rem 1.1rem;
+  margin: 1.5rem 0;
+  font-size: 0.92rem;
+}
+
+.notice.warn {
+  border-color: var(--warn-border);
+  border-left-color: var(--warn);
+  background: var(--warn-bg);
+}
+
+/* Landing page cards ------------------------------------------------------ */
+
+.cards {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+  gap: 1.25rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.4rem;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.card-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+}
+
+.card-desc {
+  color: var(--muted);
+  margin: 0.6rem 0 0;
+}
+
+.card-links {
+  font-size: 0.85rem;
+  margin-bottom: 0;
+}
+
+.card-links span {
+  color: var(--muted);
+}
+
+/* Chart page layout ------------------------------------------------------- */
+
+.layout {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: 3rem;
+  align-items: start;
+  margin-top: 2rem;
+}
+
+@media (max-width: 60rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  .toc {
+    position: static !important;
+    max-height: none !important;
+  }
+}
+
+.toc {
+  position: sticky;
+  top: 1.5rem;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  font-size: 0.87rem;
+  border-left: 1px solid var(--border);
+  padding-left: 1rem;
+}
+
+.toc-title {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.7rem;
+}
+
+.toc ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.toc ul ul {
+  padding-left: 0.85rem;
+}
+
+.toc li {
+  margin: 0.25rem 0;
+}
+
+.toc a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.toc a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* Rendered chart README --------------------------------------------------- */
+
+.prose {
+  min-width: 0;
+}
+
+.prose h2 {
+  font-size: 1.45rem;
+  margin-top: 2.75rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border);
+  scroll-margin-top: 1.5rem;
+}
+
+.prose h3 {
+  font-size: 1.15rem;
+  margin-top: 2rem;
+  scroll-margin-top: 1.5rem;
+}
+
+.prose h4 {
+  font-size: 1rem;
+  scroll-margin-top: 1.5rem;
+}
+
+.prose blockquote {
+  margin: 1.5rem 0;
+  padding: 0.1rem 1.2rem;
+  border-left: 3px solid var(--border);
+  color: var(--muted);
+}
+
+.prose .anchor {
+  margin-left: 0.4rem;
+  color: var(--border);
+  text-decoration: none;
+  font-weight: 400;
+  opacity: 0;
+}
+
+.prose :hover > .anchor {
+  opacity: 1;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 1.5rem 0;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.87rem;
+}
+
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  background: var(--code-bg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+/* The Values table's default column carries whole JSON objects, which are one
+   long token with nowhere to break. Allowing a break anywhere is what keeps a
+   single default from forcing a table several screens wide. */
+td code {
+  overflow-wrap: anywhere;
+}
