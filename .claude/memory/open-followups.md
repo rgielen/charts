@@ -1,6 +1,6 @@
 ---
 name: open-followups
-description: "OPEN as of 2026-09-01: four things verified only by reasoning or still waiting on an external run"
+description: "OPEN: one item left, the inotify limits on the workstation; the other three closed on 2026-09-02"
 metadata:
   type: project
 ---
@@ -16,18 +16,15 @@ cause worth remembering: the `_comment_ignorePaths` key added alongside the fix 
 whole configuration invalid and stopped Renovate opening pull requests at all — see
 [[renovate-json-has-no-comments]].
 
-**2. The nightly `upstream-sync` run has never happened.** Both dry runs used
-`workflow_dispatch`. On a `schedule` event the `inputs` context is unavailable and
-evaluates to the empty string, which `${CHART:+--chart "$CHART"}` turns into "check every
-chart" — that is reasoning plus the observed `pull_request` equivalent, not a
-`schedule`-triggered observation. The cron is `17 5 * * *` UTC. Watch the first one; a
-failure there is a one-line fix, but nobody will notice it unless they look.
+**2. ~~The nightly `upstream-sync` run has never happened.~~ Resolved 2026-09-02.** It
+fired on schedule at 05:31 UTC, detected 6.19.1 → 6.20.0, and held the pull request because
+the configuration surface had changed. The whole chain — detect, drift check, branch, pull
+request, verify — ran unattended and correctly.
 
-**3. `gh` here has no `workflow` scope.** Pull requests touching `.github/workflows/**`
-cannot be merged through the API (`refusing to allow an OAuth App to create or update
-workflow ... without workflow scope`); #7 and #11 were squashed locally over SSH and
-closed by hand instead. `gh auth refresh -s workflow` fixes it, and needs an interactive
-browser round trip the user has to do.
+**3. ~~`gh` here has no `workflow` scope.~~ Resolved 2026-09-02.** The user ran
+`gh auth refresh -h github.com -s repo,workflow`; pull requests touching
+`.github/workflows/**` now merge through the API, and the local-squash workaround is no
+longer needed.
 
 **4. The inotify limits may not be persistent.** `kind` needs more than the default 128
 `fs.inotify.max_user_instances`; below that `kube-proxy` dies with
