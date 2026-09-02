@@ -14,7 +14,7 @@ spec:
   containers:
     - name: health
       # renovate: datasource=docker depName=curlimages/curl
-      image: curlimages/curl:8.21.0
+      image: curlimages/curl:8.22.0
       securityContext:
         runAsNonRoot: true
         # Numeric on purpose: the image declares its user by name (curl_user),
