@@ -1,0 +1,40 @@
+{
+  "type": "object",
+  "required": ["assessment", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "assessment": {
+      "type": "string",
+      "description": "no_chart_impact only when everything was checked and nothing affects the chart. uncertain whenever something could not be determined.",
+      "enum": ["no_chart_impact", "chart_impact", "uncertain"]
+    },
+    "summary": {
+      "type": "string",
+      "description": "One or two sentences a reviewer can act on."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "summary", "evidence", "chart_location"],
+        "additionalProperties": false,
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["blocking", "worth_knowing"]
+          },
+          "summary": { "type": "string" },
+          "evidence": {
+            "type": "string",
+            "description": "A diff hunk or file:line at the resolved upstream commit. Without this it is not a finding."
+          },
+          "chart_location": {
+            "type": "string",
+            "description": "The values key, table row or template line affected."
+          },
+          "proposed_edit": { "type": "string" }
+        }
+      }
+    }
+  }
+}

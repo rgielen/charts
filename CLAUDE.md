@@ -97,8 +97,14 @@ lint-clean working tree — never a commit, push or release. It runs
 image assumptions the templates depend on) and `upstream_diff.py` before judging anything.
 
 The skill lives in `.claude/skills/analyze-upstream/`, with its calibration reference
-beside it. Cloud sessions and `claude-code-action` load project skills from the repository,
-so the same skill is meant to serve CI in `--report-only` mode — see issue #26.
+beside it. `upstream-sync.yaml` runs the same skill in `--report-only` mode as its `review`
+job, on pull requests the deterministic check already held.
+
+That job can only add reasons to hold, and not because a rule says so: `merge` needs
+`[detect, verify]` and gates on `verdict == 'clean'`, which only the deterministic check
+produces. The review job is a leaf — nothing reads it but a comment and the
+`upstream-impact` label. Keep it that way; wiring `review` into `merge`'s `needs` would
+quietly turn a reporting tool into a gate.
 
 ## Dependency updates that touch a chart
 
