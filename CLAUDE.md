@@ -34,11 +34,14 @@ ct.yaml                 chart-testing config (lint + install)
 .helm-docs.gotmpl       the shared README skeleton; calls two per-chart hooks
 renovate.json           dependency updates for chart deps, images, and workflow actions
 .github/workflows/      lint-test.yaml (PR + workflow_call), release.yaml (main),
+                        pages.yaml (the browsable gh-pages site, workflow_call),
                         upstream-sync.yaml (nightly image watch, drift check, review),
                         renovate-chart-bump.yaml, claude.yml (@claude mentions)
 .github/actions/        helm-docs (pinned install + regeneration)
 .github/scripts/        regenerate-readmes.sh, upstream_sync.py, upstream_diff.py,
-                        chart_audit.py, renovate_chart_bump.py, format_review_comment.py
+                        chart_audit.py, renovate_chart_bump.py, format_review_comment.py,
+                        build_pages.py + requirements.txt (the only non-stdlib script)
+.github/site/           style.css, copied verbatim onto gh-pages
 .github/schemas/        upstream-review.json (the review's structured output)
 .claude/skills/         analyze-upstream (/analyze-upstream, also run by CI)
 ```
@@ -74,12 +77,53 @@ something appears broken:
   `helm pull oci://ghcr.io/rgielen/charts/<chart>` fails with a 403 for everyone,
   including CI in other repositories.
 
+## The browsable site
+
+`gh-pages` carries two things that never touch each other. `index.yaml` is for
+`helm repo add` and belongs to chart-releaser. The pages beside it are for people, and
+`.github/scripts/build_pages.py` renders every one of them: a landing page listing the
+charts, and per chart its generated README, the versions actually published, and the
+upstream image it tracks. `pages.yaml` is *called* by `release.yaml` after chart-releaser
+has written the index — a site rendered before that is missing the version that just
+shipped.
+
+The site is derived, never edited. `index.yaml` is the truth about what is published, the
+chart directory on `main` about what the current version documents; the generator reads
+both and writes nothing else on the branch. That is the whole point — a hand-kept version
+table is wrong the first time someone forgets it, which is why the root README has no
+version column either.
+
+The same workflow renders on pull requests with the push step skipped, and uploads the
+result as the `site` artifact. That render *is* the check: nothing else here reads a chart's
+`Chart.yaml` and generated README the way the generator does, so without it a broken
+generator would first show up on `main`.
+
+Three consequences worth knowing:
+
+- **A chart page is a canary.** When `Chart.yaml`'s `version` is not among the published
+  ones, the page says so in a banner instead of quietly documenting something nobody can
+  install — the visible end of the silent-skip failure at the top of this file.
+- **`build_pages.py` is the one script here that is not stdlib-only.** Rendering Markdown
+  and reading `index.yaml` both want a real parser; the pins live in
+  `.github/scripts/requirements.txt`, which Renovate reads without configuration.
+- **A chart removed from `charts/` loses its page.** The generator deletes any directory
+  holding a page it wrote for a chart that no longer exists — otherwise the branch keeps
+  documenting something `main` no longer describes. Its published versions stay installable
+  either way; they live in `index.yaml` and the GitHub releases, neither of which the
+  generator touches.
+
 ## Local checks
 
 ```bash
 ct lint --config ct.yaml --all                 # all charts; omit --all for changed only
 helm template charts/<name>                    # render and inspect
 .github/scripts/regenerate-readmes.sh          # same script CI runs
+
+# Preview the gh-pages site. The index has to come from the branch -- it is the
+# published history, and no part of it is derivable from the working tree.
+git show origin/gh-pages:index.yaml > /tmp/index.yaml
+python .github/scripts/build_pages.py --index /tmp/index.yaml --output /tmp/site
+python -m http.server --directory /tmp/site 8000
 ```
 
 **The shared template path must be absolute.** `--template-files` is documented as relative

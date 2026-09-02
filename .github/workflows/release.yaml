@@ -77,3 +77,12 @@ jobs:
             fi
             helm push "$package" "oci://ghcr.io/${REGISTRY_OWNER}/charts"
           done
+
+  # Renders the browsable pages that sit next to index.yaml on gh-pages. Called
+  # rather than triggered, so it runs after chart-releaser has written the index
+  # this release belongs in -- a site rendered before that would be missing the
+  # version that just shipped. It publishes no chart and gates nothing; a failure
+  # here means a stale site, never an unpublished release.
+  site:
+    needs: release
+    uses: ./.github/workflows/pages.yaml
