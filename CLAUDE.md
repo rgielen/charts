@@ -93,7 +93,12 @@ both and writes nothing else on the branch. That is the whole point — a hand-k
 table is wrong the first time someone forgets it, which is why the root README has no
 version column either.
 
-Two consequences worth knowing:
+The same workflow renders on pull requests with the push step skipped, and uploads the
+result as the `site` artifact. That render *is* the check: nothing else here reads a chart's
+`Chart.yaml` and generated README the way the generator does, so without it a broken
+generator would first show up on `main`.
+
+Three consequences worth knowing:
 
 - **A chart page is a canary.** When `Chart.yaml`'s `version` is not among the published
   ones, the page says so in a banner instead of quietly documenting something nobody can
@@ -101,6 +106,11 @@ Two consequences worth knowing:
 - **`build_pages.py` is the one script here that is not stdlib-only.** Rendering Markdown
   and reading `index.yaml` both want a real parser; the pins live in
   `.github/scripts/requirements.txt`, which Renovate reads without configuration.
+- **A chart removed from `charts/` loses its page.** The generator deletes any directory
+  holding a page it wrote for a chart that no longer exists — otherwise the branch keeps
+  documenting something `main` no longer describes. Its published versions stay installable
+  either way; they live in `index.yaml` and the GitHub releases, neither of which the
+  generator touches.
 
 ## Local checks
 

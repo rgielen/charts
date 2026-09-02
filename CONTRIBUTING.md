@@ -229,7 +229,12 @@ Two things do affect it, and both live here:
 - `.github/site/style.css` and the generator itself, which is the only reason to touch
   anything under `.github/site/`.
 
-To see a change before merging it, render the site against the published index:
+A pull request that touches a chart or the site's own source renders it in CI and attaches
+the result as the `site` artifact — download it and open `index.html`. That render is also
+the check: if the generator cannot read your chart, the pull request goes red instead of the
+next release.
+
+To see a change without waiting for CI, render the site against the published index:
 
 ```bash
 pip install --requirement .github/scripts/requirements.txt

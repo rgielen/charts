@@ -1,6 +1,17 @@
-name: Publish Pages Site
+name: Pages Site
 
 on:
+  # The same render, with the push step skipped. Without it nothing exercises the
+  # generator before it reaches main: a chart pull request changes two of its
+  # three inputs (Chart.yaml and the generated README), and no other check reads
+  # either one the way this does.
+  pull_request:
+    paths:
+      - "charts/**"
+      - ".github/scripts/build_pages.py"
+      - ".github/scripts/requirements.txt"
+      - ".github/site/**"
+      - ".github/workflows/pages.yaml"
   # Called by release.yaml as its last job. Ordering is the whole point: the
   # index has to carry the release before the site is rendered from it, and only
   # the release run knows when that is true. A `workflow_run` trigger would run
@@ -24,13 +35,15 @@ permissions:
 
 # Two runs writing gh-pages at once would leave one of them rejected. Queue them
 # instead of cancelling: a cancelled run is a site that silently stayed stale.
+# Pull request renders write nothing, so they get a group of their own and may
+# cancel freely rather than queue behind a release.
 concurrency:
-  group: gh-pages-site
-  cancel-in-progress: false
+  group: gh-pages-site${{ github.event_name == 'pull_request' && format('-pr-{0}', github.event.number) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
-    name: Render and publish
+    name: Render the site
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -57,7 +70,23 @@ jobs:
             --index .gh-pages/index.yaml \
             --output .gh-pages
 
+      # So a reviewer can open the pages the change produces instead of reading
+      # the generator and imagining them.
+      - name: Upload the rendered site
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: site
+          # The checkout's own .git is a hidden path, which the action leaves out
+          # by default -- that default is doing real work here, not nothing.
+          path: .gh-pages
+          retention-days: 7
+
+      # `github.event_name` inside a called workflow is the event that triggered
+      # the caller, which for release.yaml is a push -- so this step runs there
+      # and is skipped only on the pull request renders above.
       - name: Commit and push
+        if: github.event_name != 'pull_request'
         working-directory: .gh-pages
         run: |
           git config user.name "$GITHUB_ACTOR"

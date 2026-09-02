@@ -433,8 +433,9 @@ tr:last-child td {
   border-bottom: none;
 }
 
-/* The Values table's default column carries whole JSON objects; keeping it from
-   wrapping mid-token is what makes the table readable at all. */
+/* The Values table's default column carries whole JSON objects, which are one
+   long token with nowhere to break. Allowing a break anywhere is what keeps a
+   single default from forcing a table several screens wide. */
 td code {
   overflow-wrap: anywhere;
 }
