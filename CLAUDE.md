@@ -34,9 +34,13 @@ ct.yaml                 chart-testing config (lint + install)
 .helm-docs.gotmpl       the shared README skeleton; calls two per-chart hooks
 renovate.json           dependency updates for chart deps, images, and workflow actions
 .github/workflows/      lint-test.yaml (PR + workflow_call), release.yaml (main),
-                        upstream-sync.yaml (nightly image watch)
+                        upstream-sync.yaml (nightly image watch, drift check, review),
+                        renovate-chart-bump.yaml, claude.yml (@claude mentions)
 .github/actions/        helm-docs (pinned install + regeneration)
-.github/scripts/        regenerate-readmes.sh, upstream_sync.py
+.github/scripts/        regenerate-readmes.sh, upstream_sync.py, upstream_diff.py,
+                        chart_audit.py, renovate_chart_bump.py, format_review_comment.py
+.github/schemas/        upstream-review.json (the review's structured output)
+.claude/skills/         analyze-upstream (/analyze-upstream, also run by CI)
 ```
 
 Chart `README.md` files are **generated**. Edit the comments in `values.yaml`, the chart's
