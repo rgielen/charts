@@ -221,6 +221,14 @@ jobs:
           curl -sSfL "https://github.com/google/go-containerregistry/releases/download/v${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz" \
             | sudo tar -xz -C /usr/local/bin crane
 
+      # --json-schema takes the schema itself, not a path to it. Reading the file
+      # here keeps the schema reviewable as a file instead of a quoted blob in a
+      # workflow argument.
+      - name: Load the output schema
+        id: schema
+        if: matrix.verdict != 'clean'
+        run: echo "json=$(jq -c . .github/schemas/upstream-review.json)" >> "$GITHUB_OUTPUT"
+
       - uses: anthropics/claude-code-action@v1
         id: analysis
         if: matrix.verdict != 'clean'
@@ -240,7 +248,7 @@ jobs:
           claude_args: |
             --allowedTools "Bash,Read,Grep,Glob"
             --disallowedTools "Edit,Write,NotebookEdit,AskUserQuestion"
-            --json-schema .github/schemas/upstream-review.json
+            --json-schema '${{ steps.schema.outputs.json }}'
 
       - name: Post the review
         if: matrix.verdict != 'clean'
