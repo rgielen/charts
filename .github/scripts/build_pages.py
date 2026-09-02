@@ -359,9 +359,14 @@ def chart_card(name: str, chart: dict, entries: list[dict], repository: str) -> 
     keywords = "".join(
         f'<span class="chip">{html.escape(str(word))}</span>' for word in (chart.get("keywords") or [])[:6]
     )
+    # `icon` is a URL on somebody else's host, and the page cannot know at build
+    # time whether it still resolves -- checking would make rendering depend on
+    # the network. Removing the element on error costs one attribute and turns a
+    # dead icon into no icon rather than a broken-image glyph.
     icon = chart.get("icon")
     icon_html = (
-        f'<img class="icon" src="{html.escape(str(icon))}" alt="" loading="lazy" width="32" height="32">'
+        f'<img class="icon" src="{html.escape(str(icon))}" alt="" loading="lazy"'
+        ' width="32" height="32" onerror="this.remove()">'
         if icon
         else ""
     )
