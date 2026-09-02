@@ -105,7 +105,15 @@ proposed edit. Then the image contract, pass or fail per line. Then, briefly, wh
 you checked and found nothing in — an analysis that only lists hits reads as if it
 looked nowhere else.
 
-In `--report-only` mode, end with exactly this block and nothing after it:
+In `--report-only` mode you are being read by a workflow, not a person.
+
+When a JSON schema is in effect — CI passes `--json-schema
+.github/schemas/upstream-review.json` — produce the structured output it defines.
+Every finding needs `severity`, `summary`, `evidence` and `chart_location`;
+`evidence` is a diff hunk or `file:line` at the resolved commit, and a finding
+without one does not belong in the list.
+
+Without a schema, end with exactly this block and nothing after it:
 
 ```
 ASSESSMENT: no_chart_impact | chart_impact | uncertain
@@ -113,8 +121,14 @@ BLOCKING: <count>
 WORTH_KNOWING: <count>
 ```
 
-`uncertain` when anything could not be determined. Never claim `no_chart_impact`
-for something you could not check.
+`uncertain` whenever anything could not be determined. **Never claim
+`no_chart_impact` for something you could not check** — the workflow treats that
+answer as "nothing to add", and it is the one answer that can be wrong in the
+expensive direction.
+
+You cannot merge anything, and nothing you output can. The pull request is
+already held by the deterministic check, and the workflow's merge condition does
+not read this job. Say what you found; the decision is not yours.
 
 ## 6. Ask, then apply
 

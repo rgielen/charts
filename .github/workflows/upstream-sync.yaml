@@ -181,6 +181,90 @@ jobs:
     with:
       ref: ${{ matrix.branch }}
 
+  # Layer two: what a held change *means* for the chart, as opposed to whether
+  # anything changed. It runs only on entries layer one already held, and nothing
+  # reads its result but a comment and a label -- `merge` below requires
+  # `verdict == 'clean'`, which this job cannot produce and never touches. The
+  # escalate-only rule is therefore a property of the graph, not a rule somebody
+  # has to keep obeying.
+  #
+  # The analysis is the /analyze-upstream skill in .claude/skills/, the same one
+  # used interactively. Report-only is enforced twice: by the argument, and by
+  # restricting the tools to read-only ones.
+  review:
+    name: Review ${{ matrix.name }} ${{ matrix.appVersion }}
+    needs: detect
+    if: needs.detect.outputs.updates != '' && needs.detect.outputs.updates != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.detect.outputs.updates) }}
+    steps:
+      - uses: actions/checkout@v7
+        if: matrix.verdict != 'clean'
+        with:
+          # The bumped chart, so the skill compares against what would ship.
+          ref: ${{ matrix.branch }}
+
+      - name: Install crane
+        if: matrix.verdict != 'clean'
+        env:
+          # renovate: datasource=github-releases depName=google/go-containerregistry
+          CRANE_VERSION: 0.22.0
+        run: |
+          curl -sSfL "https://github.com/google/go-containerregistry/releases/download/v${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin crane
+
+      - uses: anthropics/claude-code-action@v1
+        id: analysis
+        if: matrix.verdict != 'clean'
+        # A failed review must not queue every later bump behind a broken token:
+        # layer one already holds this pull request, so the review is additional
+        # information, never the thing keeping it shut.
+        continue-on-error: true
+        env:
+          # chart_audit.py and the skill's own `gh pr list` need an authenticated gh.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Passed explicitly so the action does not authenticate as the Claude
+          # GitHub App. Nothing here is posted by Claude; the workflow posts it.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: "/analyze-upstream --report-only"
+          claude_args: |
+            --allowedTools "Bash,Read,Grep,Glob"
+            --json-schema .github/schemas/upstream-review.json
+
+      - name: Post the review
+        if: matrix.verdict != 'clean'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONCLUSION: ${{ steps.analysis.outputs.conclusion }}
+          STRUCTURED: ${{ steps.analysis.outputs.structured_output }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          BRANCH: ${{ matrix.branch }}
+        run: |
+          gh label create upstream-impact --color D93F0B --force \
+            --description "An upstream change affects what this chart models" > /dev/null
+
+          body="$(mktemp)"
+          hold=0
+          if [[ "$CONCLUSION" != "success" ]]; then
+            printf '%s' "" | python3 .github/scripts/format_review_comment.py "$RUN_URL" > "$body" || hold=$?
+          else
+            printf '%s' "$STRUCTURED" | python3 .github/scripts/format_review_comment.py "$RUN_URL" > "$body" || hold=$?
+          fi
+
+          gh pr comment "$BRANCH" --body-file "$body"
+          if [[ "$hold" -ne 0 ]]; then
+            gh pr edit "$BRANCH" --add-label upstream-impact
+          fi
+
   merge:
     name: Merge ${{ matrix.name }}
     needs: [detect, verify]
