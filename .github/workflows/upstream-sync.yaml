@@ -189,8 +189,9 @@ jobs:
   # has to keep obeying.
   #
   # The analysis is the /analyze-upstream skill in .claude/skills/, the same one
-  # used interactively. Report-only is enforced twice: by the argument, and by
-  # restricting the tools to read-only ones.
+  # used interactively. Report-only is enforced three ways: the argument, an
+  # allowlist of read-only tools, and removing the editing ones from the pool
+  # outright -- the skill's own frontmatter grants them for interactive use.
   review:
     name: Review ${{ matrix.name }} ${{ matrix.appVersion }}
     needs: detect
@@ -238,6 +239,7 @@ jobs:
           prompt: "/analyze-upstream --report-only"
           claude_args: |
             --allowedTools "Bash,Read,Grep,Glob"
+            --disallowedTools "Edit,Write,NotebookEdit,AskUserQuestion"
             --json-schema .github/schemas/upstream-review.json
 
       - name: Post the review
