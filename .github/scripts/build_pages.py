@@ -101,12 +101,20 @@ def released_on(entry: dict) -> str:
     return str(entry.get("created", ""))[:10]
 
 
-def strip_readme_header(text: str) -> str:
-    """Drop the README's own title and badge line.
+def strip_readme_header(text: str, description: str = "", homepage: str = "") -> str:
+    """Drop the four opening blocks the page draws itself.
 
-    The page draws both itself, from Chart.yaml, and the badges are remote
-    images. Dropping the h1 also leaves the document starting at h2, which is the
-    right level below the page heading.
+    helm-docs opens every README with the title, a row of shields.io badges, the
+    chart description and the homepage line. All four appear in the page header
+    above the article, so leaving them in printed the description twice -- which
+    is only visible once you look at the rendered page.
+
+    Each block is matched, not counted: the description has to equal the one in
+    Chart.yaml and the homepage line has to be helm-docs' own. A chart whose
+    README opens differently keeps whatever it has.
+
+    Dropping the h1 also leaves the document starting at h2, the right level
+    below the page heading.
     """
     lines = text.splitlines()
     cursor = 0
@@ -116,6 +124,21 @@ def strip_readme_header(text: str) -> str:
             cursor += 1
         if cursor < len(lines) and "img.shields.io" in lines[cursor]:
             cursor += 1
+
+    while cursor < len(lines):
+        while cursor < len(lines) and not lines[cursor].strip():
+            cursor += 1
+        if cursor >= len(lines):
+            break
+        line = lines[cursor].strip()
+        if description and line == description.strip():
+            cursor += 1
+            continue
+        if homepage and line.startswith("**Homepage:**") and homepage in line:
+            cursor += 1
+            continue
+        break
+
     return "\n".join(lines[cursor:]).lstrip("\n")
 
 
@@ -245,6 +268,7 @@ def document(*, title: str, description: str, body: str, root: str, repository: 
 <title>{title}</title>
 <meta name="description" content="{description}">
 <meta name="color-scheme" content="light dark">
+<link rel="icon" href="{root}assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="{root}assets/style.css">
 </head>
 <body>
@@ -287,6 +311,20 @@ def badges(chart: dict) -> str:
     return '<p class="badges">' + "".join(parts) + "</p>"
 
 
+def homepage_link(chart: dict) -> str:
+    """The upstream project, shown by host rather than as a bare URL.
+
+    helm-docs puts this in the README as a `**Homepage:**` line; the page strips
+    that one and renders it here instead, beside the badges where a reader is
+    already looking.
+    """
+    home = str(chart.get("home", "")).strip()
+    if not home:
+        return ""
+    label = home.split("://", 1)[-1].rstrip("/")
+    return f'<p class="page-links"><a href="{html.escape(home)}">{html.escape(label)}</a></p>'
+
+
 def chart_page(*, chart: dict, readme: str, entries: list[dict], repository: str) -> str:
     name = str(chart.get("name", ""))
     version = str(chart.get("version", ""))
@@ -296,7 +334,11 @@ def chart_page(*, chart: dict, readme: str, entries: list[dict], repository: str
     # The README already carries an Installation section with both commands and
     # its own version, so the page adds none of its own. That version is the one
     # in Chart.yaml, which the banner below qualifies when it is not published.
-    document_md = strip_readme_header(HELM_DOCS_FOOTER.sub("", readme))
+    document_md = strip_readme_header(
+        HELM_DOCS_FOOTER.sub("", readme),
+        description=str(chart.get("description", "")),
+        homepage=str(chart.get("home", "")),
+    )
     for section in (
         versions_section(name, entries, repository),
         upstream_section(chart.get("annotations") or {}, str(chart.get("appVersion", ""))),
@@ -328,6 +370,7 @@ def chart_page(*, chart: dict, readme: str, entries: list[dict], repository: str
 <h1>{name}</h1>
 <p class="lede">{description}</p>
 {badges}
+{home}
 {notices}
 <div class="layout">
 {toc}
@@ -339,6 +382,7 @@ def chart_page(*, chart: dict, readme: str, entries: list[dict], repository: str
         name=html.escape(name),
         description=html.escape(str(chart.get("description", ""))),
         badges=badges(chart),
+        home=homepage_link(chart),
         notices="".join(notices),
         toc=toc,
         body=body,
@@ -543,8 +587,9 @@ def build(
     written.append("index.html")
 
     (output / "assets").mkdir(parents=True, exist_ok=True)
-    shutil.copy2(assets / "style.css", output / "assets" / "style.css")
-    written.append("assets/style.css")
+    for name in ("style.css", "favicon.svg"):
+        shutil.copy2(assets / name, output / "assets" / name)
+        written.append(f"assets/{name}")
 
     (output / "README.md").write_text(BRANCH_README.format(repository=repository, pages=pages_url))
     written.append("README.md")

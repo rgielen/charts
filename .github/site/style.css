@@ -285,9 +285,14 @@ h1 {
   margin: 0.6rem 0 0;
 }
 
-.card-links {
+.card-links,
+.page-links {
   font-size: 0.85rem;
   margin-bottom: 0;
+}
+
+.page-links {
+  margin-top: -0.25rem;
 }
 
 .card-links span {
