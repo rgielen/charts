@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="rgielen Helm charts">
+  <!--
+    Copied onto gh-pages beside style.css and linked from every page. Without a
+    declared icon the browser falls back to /favicon.ico at the *origin* root,
+    which is one level above this repository's Pages path and 404s on every
+    single page load.
+
+    A packaged box, in the accent colour the pages already use. The rounded
+    square carries it at 16px, where the outline alone would disappear.
+  -->
+  <rect width="32" height="32" rx="7" fill="#2c5f7c"/>
+  <path d="M16 7.5l7.5 4.25v8.5L16 24.5l-7.5-4.25v-8.5z"
+        fill="none" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M8.5 11.75L16 16l7.5-4.25M16 16v8.5"
+        fill="none" stroke="#ffffff" stroke-width="2"
+        stroke-linejoin="round" stroke-linecap="round" opacity="0.75"/>
+</svg>

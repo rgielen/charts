@@ -7,6 +7,7 @@
 <title>manifest-llm-gateway — rgielen Helm Charts</title>
 <meta name="description" content="Manifest, the self-hosted LLM gateway, proxy and dashboard.">
 <meta name="color-scheme" content="light dark">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
@@ -22,12 +23,11 @@
 <h1>manifest-llm-gateway</h1>
 <p class="lede">Manifest, the self-hosted LLM gateway, proxy and dashboard.</p>
 <p class="badges"><span class="badge"><span>Chart</span><b>2.2.1</b></span><span class="badge"><span>App</span><b>6.20.0</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
+<p class="page-links"><a href="https://manifest.build">manifest.build</a></p>
 
 <div class="layout">
 <nav class="toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li><a href="#installation">Installation</a></li><li><a href="#source-code">Source Code</a></li><li><a href="#values">Values</a><ul><li><a href="#workload">Workload</a></li><li><a href="#extensibility">Extensibility</a></li><li><a href="#networking">Networking</a></li><li><a href="#image">Image</a></li><li><a href="#manifest-core">Manifest: core</a></li><li><a href="#manifest-llm-proxy">Manifest: LLM proxy</a></li><li><a href="#manifest-database">Manifest: database</a></li><li><a href="#manifest-email-and-oauth">Manifest: email and OAuth</a></li><li><a href="#manifest-operations">Manifest: operations</a></li><li><a href="#manifest-request-recordings">Manifest: request recordings</a></li><li><a href="#manifest-observability">Manifest: observability</a></li><li><a href="#persistence">Persistence</a></li></ul></li><li><a href="#quick-start">Quick start</a></li><li><a href="#secrets">Secrets</a></li><li><a href="#reverse-proxy-and-publicurl">Reverse proxy and publicUrl</a></li><li><a href="#database">Database</a></li><li><a href="#request-recordings">Request recordings</a></li><li><a href="#database-migrations">Database migrations</a></li><li><a href="#high-availability">High availability</a></li><li><a href="#upgrading">Upgrading</a></li><li><a href="#use-from-argocd">Use from ArgoCD</a></li><li><a href="#environment-variable-mapping">Environment variable mapping</a><ul><li><a href="#deliberately-not-modelled">Deliberately not modelled</a></li></ul></li><li><a href="#maintainers">Maintainers</a></li><li><a href="#published-versions">Published versions</a></li><li><a href="#upstream-tracking">Upstream tracking</a></li></ul></nav>
 <article class="prose">
-<p>Manifest, the self-hosted LLM gateway, proxy and dashboard.</p>
-<p><strong>Homepage:</strong> <a href="https://manifest.build">https://manifest.build</a></p>
 <p><a href="https://manifest.build">Manifest</a> is a self-hosted gateway in front of the LLM providers
 you already pay for. It gives you one OpenAI-compatible endpoint, a dashboard for keys,
 routing and fallbacks, and a record of what was actually sent and returned.</p>
