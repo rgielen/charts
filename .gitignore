@@ -12,6 +12,10 @@ charts/*/charts/
 __pycache__/
 *.pyc
 
+# Isolated worktrees a Claude Code session may create. They are checkouts of
+# this same repository, and committing one embeds a git repository inside it.
+.claude/worktrees/
+
 ### IntelliJ IDEA ###
 .idea
 *.iws

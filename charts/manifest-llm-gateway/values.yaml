@@ -285,7 +285,9 @@ manifest:
 
   # -- Deployment mode (`MANIFEST_MODE`). `selfhosted` relaxes the SSRF rules so
   # private and plain-http provider URLs are allowed. Set explicitly rather than
-  # left to auto-detection, exactly as the upstream compose file does.
+  # left to auto-detection, exactly as the upstream compose file does. `local` is
+  # the upstream's legacy alias for `selfhosted` and behaves identically; prefer
+  # `selfhosted` for anything new.
   # @section -- Manifest: core
   mode: selfhosted
 
@@ -368,6 +370,13 @@ manifest:
     # treating it as stalled and failing over (`STREAM_WARMUP_MS`).
     # @section -- Manifest: LLM proxy
     streamWarmupMs: 15000
+    # -- Maximum silence in ms between two chunks of an upstream streaming
+    # response before the request fails with HTTP 504
+    # (`STREAM_IDLE_TIMEOUT_MS`). Distinct from `streamWarmupMs`, which only
+    # covers the wait for the *first* chunk: raise this one for agent workloads
+    # that think for a long time between tokens.
+    # @section -- Manifest: LLM proxy
+    streamIdleTimeoutMs: 180000
     # -- Time in ms to wait for deliverable text or tool output from ChatGPT
     # Codex (`CODEX_SEMANTIC_OUTPUT_TIMEOUT_MS`).
     # @section -- Manifest: LLM proxy
