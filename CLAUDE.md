@@ -36,7 +36,7 @@ renovate.json           dependency updates for chart deps, images, and workflow 
 .github/workflows/      lint-test.yaml (PR + workflow_call), release.yaml (main),
                         pages.yaml (the browsable gh-pages site, workflow_call),
                         upstream-sync.yaml (nightly image watch, drift check, review),
-                        renovate-chart-bump.yaml, claude.yml (@claude mentions)
+                        renovate-chart-bump.yaml, claude.yml (@claude, owner-gated)
 .github/actions/        helm-docs (pinned install + regeneration)
 .github/scripts/        regenerate-readmes.sh, upstream_sync.py, upstream_diff.py,
                         chart_audit.py, renovate_chart_bump.py, format_review_comment.py,
