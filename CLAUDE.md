@@ -44,6 +44,7 @@ renovate.json           dependency updates for chart deps, images, and workflow 
 .github/site/           style.css, copied verbatim onto gh-pages
 .github/schemas/        upstream-review.json (the review's structured output)
 .claude/skills/         analyze-upstream (/analyze-upstream, also run by CI)
+.claude/plans/          design notes for work decided but not started yet
 ```
 
 Chart `README.md` files are **generated**. Edit the comments in `values.yaml`, the chart's
