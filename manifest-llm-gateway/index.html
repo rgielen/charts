@@ -22,11 +22,11 @@
 <p class="crumbs"><a href="../">Charts</a> <span>/</span> manifest-llm-gateway</p>
 <h1>manifest-llm-gateway</h1>
 <p class="lede">Manifest, the self-hosted LLM gateway, proxy and dashboard.</p>
-<p class="badges"><span class="badge"><span>Chart</span><b>2.2.2</b></span><span class="badge"><span>App</span><b>6.20.0</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
+<p class="badges"><span class="badge"><span>Chart</span><b>2.3.0</b></span><span class="badge"><span>App</span><b>6.21.0</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
 <p class="page-links"><a href="https://manifest.build">manifest.build</a></p>
 
 <div class="layout">
-<nav class="toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li><a href="#installation">Installation</a></li><li><a href="#source-code">Source Code</a></li><li><a href="#values">Values</a><ul><li><a href="#workload">Workload</a></li><li><a href="#extensibility">Extensibility</a></li><li><a href="#networking">Networking</a></li><li><a href="#image">Image</a></li><li><a href="#manifest-core">Manifest: core</a></li><li><a href="#manifest-llm-proxy">Manifest: LLM proxy</a></li><li><a href="#manifest-database">Manifest: database</a></li><li><a href="#manifest-email-and-oauth">Manifest: email and OAuth</a></li><li><a href="#manifest-operations">Manifest: operations</a></li><li><a href="#manifest-request-recordings">Manifest: request recordings</a></li><li><a href="#manifest-observability">Manifest: observability</a></li><li><a href="#persistence">Persistence</a></li></ul></li><li><a href="#quick-start">Quick start</a></li><li><a href="#secrets">Secrets</a></li><li><a href="#reverse-proxy-and-publicurl">Reverse proxy and publicUrl</a></li><li><a href="#database">Database</a></li><li><a href="#request-recordings">Request recordings</a></li><li><a href="#database-migrations">Database migrations</a></li><li><a href="#high-availability">High availability</a></li><li><a href="#upgrading">Upgrading</a></li><li><a href="#use-from-argocd">Use from ArgoCD</a></li><li><a href="#environment-variable-mapping">Environment variable mapping</a><ul><li><a href="#deliberately-not-modelled">Deliberately not modelled</a></li></ul></li><li><a href="#maintainers">Maintainers</a></li><li><a href="#published-versions">Published versions</a></li><li><a href="#upstream-tracking">Upstream tracking</a></li></ul></nav>
+<nav class="toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li><a href="#installation">Installation</a></li><li><a href="#source-code">Source Code</a></li><li><a href="#values">Values</a><ul><li><a href="#workload">Workload</a></li><li><a href="#extensibility">Extensibility</a></li><li><a href="#networking">Networking</a></li><li><a href="#image">Image</a></li><li><a href="#manifest-core">Manifest: core</a></li><li><a href="#manifest-llm-proxy">Manifest: LLM proxy</a></li><li><a href="#manifest-database">Manifest: database</a></li><li><a href="#manifest-email-and-oauth">Manifest: email and OAuth</a></li><li><a href="#manifest-operations">Manifest: operations</a></li><li><a href="#manifest-request-recordings">Manifest: request recordings</a></li><li><a href="#manifest-observability">Manifest: observability</a></li><li><a href="#persistence">Persistence</a></li></ul></li><li><a href="#quick-start">Quick start</a></li><li><a href="#secrets">Secrets</a><ul><li><a href="#rotating-the-encryption-key">Rotating the encryption key</a></li></ul></li><li><a href="#reverse-proxy-and-publicurl">Reverse proxy and publicUrl</a></li><li><a href="#database">Database</a></li><li><a href="#request-recordings">Request recordings</a></li><li><a href="#database-migrations">Database migrations</a></li><li><a href="#high-availability">High availability</a></li><li><a href="#upgrading">Upgrading</a></li><li><a href="#use-from-argocd">Use from ArgoCD</a></li><li><a href="#environment-variable-mapping">Environment variable mapping</a><ul><li><a href="#deliberately-not-modelled">Deliberately not modelled</a></li></ul></li><li><a href="#maintainers">Maintainers</a></li><li><a href="#published-versions">Published versions</a></li><li><a href="#upstream-tracking">Upstream tracking</a></li></ul></nav>
 <article class="prose">
 <p><a href="https://manifest.build">Manifest</a> is a self-hosted gateway in front of the LLM providers
 you already pay for. It gives you one OpenAI-compatible endpoint, a dashboard for keys,
@@ -57,10 +57,10 @@ Kubernetes.</p>
 <p>From the Helm repository:</p>
 <pre><code class="language-bash">helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.2.2
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.3.0
 </code></pre>
 <p>Or directly from the OCI registry:</p>
-<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.2.2
+<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.3.0
 </code></pre>
 <h2 id="source-code">Source Code<a class="anchor" href="#source-code" title="Permanent link">#</a></h2>
 <ul>
@@ -465,7 +465,13 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.2.
 <td>manifest.auth.encryptionKey</td>
 <td>string</td>
 <td><code>""</code></td>
-<td>Separate at-rest encryption key for stored provider API keys and OAuth tokens (<code>MANIFEST_ENCRYPTION_KEY</code>). Falls back to <code>auth.secret</code> when empty, which means one leaked session cookie secret also decrypts every stored provider credential. Set a second, independent 32+ character value. <strong>Changing this makes existing stored credentials unreadable.</strong></td>
+<td>Separate at-rest encryption key for stored provider API keys and OAuth tokens (<code>MANIFEST_ENCRYPTION_KEY</code>). Falls back to <code>auth.secret</code> when empty, which means one leaked session cookie secret also decrypts every stored provider credential. Set a second, independent 32+ character value. <strong>Changing this without <code>previousEncryptionKey</code> makes existing stored credentials unreadable.</strong></td>
+</tr>
+<tr>
+<td>manifest.auth.previousEncryptionKey</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>The key that encrypted the stored credentials until now (<code>MANIFEST_ENCRYPTION_KEY_PREVIOUS</code>), set only while rotating <code>encryptionKey</code> — or while introducing one on an install that had been falling back to <code>auth.secret</code>, in which case this is that value. While it is set, a pass after boot rewrites every stored provider key, OAuth token, agent key and e-mail provider key onto the new key; remove it once the log reports nothing left under an older secret. Under 32 characters is ignored. Stored recording bodies are <em>not</em> rewritten and do not survive the change.</td>
 </tr>
 <tr>
 <td>manifest.auth.secret</td>
@@ -1013,11 +1019,30 @@ render, with a message naming both ways out.</p>
 every stored provider API key and OAuth token at rest. ArgoCD renders charts with
 <code>helm template</code> and no cluster access, where Helm's <code>lookup</code> returns nothing: a generated
 value would come out different on every single sync, and every stored credential would
-become undecryptable. The same reasoning applies to changing the key later — treat it as
-permanent once credentials are stored.</p>
+become undecryptable. A key that changes on its own is still the failure case; a key you
+change deliberately is not, and has its own procedure below.</p>
 <p>Set <code>manifest.auth.encryptionKey</code> to a <em>second, independent</em> value rather than letting it
 fall back. Otherwise one leaked session-signing secret also decrypts every provider
 credential you have stored.</p>
+<h3 id="rotating-the-encryption-key">Rotating the encryption key<a class="anchor" href="#rotating-the-encryption-key" title="Permanent link">#</a></h3>
+<p>Changing <code>manifest.auth.encryptionKey</code> on its own leaves every stored credential
+undecryptable, and the read paths report that as "provider not connected" rather than as
+an error — the damage is silent. Rotate in three steps instead:</p>
+<ol>
+<li>Set <code>manifest.auth.previousEncryptionKey</code> to the <em>current</em> key and
+   <code>manifest.auth.encryptionKey</code> to the new one, then upgrade. Introducing a dedicated key
+   on an install that had been falling back to the session secret is the same move, with
+   <code>manifest.auth.secret</code>'s value as the previous key.</li>
+<li>After boot one pod rewrites every stored provider key, OAuth token, agent key and
+   e-mail provider key onto the new key, in batches, while the old key keeps working. Wait
+   for <code>Nothing left under an older secret</code> in the log. Anything it could not decrypt
+   under either key it leaves untouched and names, rather than destroying it.</li>
+<li>Remove <code>manifest.auth.previousEncryptionKey</code> and upgrade again. Leaving it set keeps
+   the old key readable — and mounted in the Secret — indefinitely.</li>
+</ol>
+<p>Recording <em>bodies</em> are the exception: they are encrypted with the same key but are not
+rewritten, so a rotation makes existing ones unreadable and retention eventually removes
+them. Metadata in the database is unaffected.</p>
 <h2 id="reverse-proxy-and-publicurl">Reverse proxy and <code>publicUrl</code><a class="anchor" href="#reverse-proxy-and-publicurl" title="Permanent link">#</a></h2>
 <p><code>manifest.publicUrl</code> becomes <code>BETTER_AUTH_URL</code> and must match the URL the browser actually
 uses, or logins and OAuth callbacks fail in ways that look like unrelated bugs. When an
@@ -1048,6 +1073,10 @@ optional, and go to one of two places:</p>
 </ul>
 <p>Retention defaults to 365 days upstream; override with
 <code>manifest.recordings.retentionDays</code>.</p>
+<p>Bodies are encrypted at rest with <code>manifest.auth.encryptionKey</code> as of upstream 6.21.0
+(recordings written before that stay readable). Unlike stored credentials they are not
+rewritten during a key rotation, so see <em>Rotating the encryption key</em> above before
+changing it.</p>
 <h2 id="database-migrations">Database migrations<a class="anchor" href="#database-migrations" title="Permanent link">#</a></h2>
 <p>Migrations are applied by a <code>pre-install</code>/<code>pre-upgrade</code> hook Job that runs the upstream's
 own migration entry point, not by the application on boot. The Job runs exactly once per
@@ -1128,7 +1157,9 @@ needs no special configuration. More than one <em>replica</em> is a different qu
 </tbody>
 </table></div>
 <p>Recording retention cleanup is <em>not</em> on that list: it takes its own advisory lock upstream
-and is safe across replicas.</p>
+and is safe across replicas. Neither is the re-encryption pass that
+<code>manifest.auth.previousEncryptionKey</code> triggers — it takes a third lock, and takes it
+without waiting, so one pod does the rewrite and the others carry on serving.</p>
 <p>If a strict global rate limit matters to you, enforce it at the ingress rather than
 relying on <code>THROTTLE_LIMIT</code>.</p>
 <h2 id="upgrading">Upgrading<a class="anchor" href="#upgrading" title="Permanent link">#</a></h2>
@@ -1151,7 +1182,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.2.2
+    targetRevision: 2.3.0
     helm:
       valuesObject:
         manifest:
@@ -1187,6 +1218,10 @@ in the left column.</p>
 <tr>
 <td><code>MANIFEST_ENCRYPTION_KEY</code></td>
 <td><code>manifest.auth.encryptionKey</code> <em>(secret)</em></td>
+</tr>
+<tr>
+<td><code>MANIFEST_ENCRYPTION_KEY_PREVIOUS</code></td>
+<td><code>manifest.auth.previousEncryptionKey</code> <em>(secret)</em></td>
 </tr>
 <tr>
 <td><code>PORT</code></td>
@@ -1444,6 +1479,13 @@ re-released with different content.</p>
 </thead>
 <tbody>
 <tr>
+<td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.3.0"><code>2.3.0</code></a></td>
+<td><code>6.21.0</code></td>
+<td>2026-09-03</td>
+<td><a href="https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.3.0/manifest-llm-gateway-2.3.0.tgz"><code>.tgz</code></a></td>
+<td><code>c32f98971cbf38ddd39…</code></td>
+</tr>
+<tr>
 <td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.2.2"><code>2.2.2</code></a></td>
 <td><code>6.20.0</code></td>
 <td>2026-09-02</td>
@@ -1552,7 +1594,7 @@ unattended only when the bump is not a major one and the diff is clean.</p>
 </tr>
 <tr>
 <td>Release notes</td>
-<td><a href="https://github.com/mnfst/manifest/releases/tag/manifest@6.20.0">manifest@6.20.0</a> — not every image tag has one</td>
+<td><a href="https://github.com/mnfst/manifest/releases/tag/manifest@6.21.0">manifest@6.21.0</a> — not every image tag has one</td>
 </tr>
 <tr>
 <td>Watched files</td>
