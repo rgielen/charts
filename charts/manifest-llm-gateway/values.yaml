@@ -324,9 +324,20 @@ manifest:
     # tokens (`MANIFEST_ENCRYPTION_KEY`). Falls back to `auth.secret` when
     # empty, which means one leaked session cookie secret also decrypts every
     # stored provider credential. Set a second, independent 32+ character value.
-    # **Changing this makes existing stored credentials unreadable.**
+    # **Changing this without `previousEncryptionKey` makes existing stored
+    # credentials unreadable.**
     # @section -- Manifest: core
     encryptionKey: ""
+    # -- The key that encrypted the stored credentials until now
+    # (`MANIFEST_ENCRYPTION_KEY_PREVIOUS`), set only while rotating
+    # `encryptionKey` — or while introducing one on an install that had been
+    # falling back to `auth.secret`, in which case this is that value. While it
+    # is set, a pass after boot rewrites every stored provider key, OAuth token,
+    # agent key and e-mail provider key onto the new key; remove it once the log
+    # reports nothing left under an older secret. Under 32 characters is ignored.
+    # Stored recording bodies are *not* rewritten and do not survive the change.
+    # @section -- Manifest: core
+    previousEncryptionKey: ""
 
   # -- Optional key for programmatic access through the `X-API-Key` header
   # (`API_KEY`). The dashboard uses cookie sessions and agents use their own

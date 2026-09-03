@@ -136,7 +136,8 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | manifest.apiKey | string | `""` | Optional key for programmatic access through the `X-API-Key` header (`API_KEY`). The dashboard uses cookie sessions and agents use their own `mnfst_*` keys, so this is only needed for scripting the admin API. |
-| manifest.auth.encryptionKey | string | `""` | Separate at-rest encryption key for stored provider API keys and OAuth tokens (`MANIFEST_ENCRYPTION_KEY`). Falls back to `auth.secret` when empty, which means one leaked session cookie secret also decrypts every stored provider credential. Set a second, independent 32+ character value. **Changing this makes existing stored credentials unreadable.** |
+| manifest.auth.encryptionKey | string | `""` | Separate at-rest encryption key for stored provider API keys and OAuth tokens (`MANIFEST_ENCRYPTION_KEY`). Falls back to `auth.secret` when empty, which means one leaked session cookie secret also decrypts every stored provider credential. Set a second, independent 32+ character value. **Changing this without `previousEncryptionKey` makes existing stored credentials unreadable.** |
+| manifest.auth.previousEncryptionKey | string | `""` | The key that encrypted the stored credentials until now (`MANIFEST_ENCRYPTION_KEY_PREVIOUS`), set only while rotating `encryptionKey` — or while introducing one on an install that had been falling back to `auth.secret`, in which case this is that value. While it is set, a pass after boot rewrites every stored provider key, OAuth token, agent key and e-mail provider key onto the new key; remove it once the log reports nothing left under an older secret. Under 32 characters is ignored. Stored recording bodies are *not* rewritten and do not survive the change. |
 | manifest.auth.secret | string | `""` | Session signing secret (`BETTER_AUTH_SECRET`), at least 32 characters. Generate with `openssl rand -hex 32`. Required unless `existingSecret` provides it — the chart refuses to render without one. It is never generated for you: this chart is meant to be rendered by ArgoCD, where `lookup` returns nothing and a generated value would be different on every sync, taking every stored provider credential with it. |
 | manifest.corsOrigins | list | `[]` | Extra browser origins allowed to call the gateway (`WINGMAN_CORS_ORIGINS`). Joined with commas. |
 | manifest.disableHsts | bool | `false` | Silence the boot warning about the missing HSTS header on a plain-http deployment (`MANIFEST_DISABLE_HSTS`). Prefer a real `https://` `publicUrl` anywhere reachable from the internet. |
@@ -288,12 +289,33 @@ render, with a message naming both ways out.
 every stored provider API key and OAuth token at rest. ArgoCD renders charts with
 `helm template` and no cluster access, where Helm's `lookup` returns nothing: a generated
 value would come out different on every single sync, and every stored credential would
-become undecryptable. The same reasoning applies to changing the key later — treat it as
-permanent once credentials are stored.
+become undecryptable. A key that changes on its own is still the failure case; a key you
+change deliberately is not, and has its own procedure below.
 
 Set `manifest.auth.encryptionKey` to a *second, independent* value rather than letting it
 fall back. Otherwise one leaked session-signing secret also decrypts every provider
 credential you have stored.
+
+### Rotating the encryption key
+
+Changing `manifest.auth.encryptionKey` on its own leaves every stored credential
+undecryptable, and the read paths report that as "provider not connected" rather than as
+an error — the damage is silent. Rotate in three steps instead:
+
+1. Set `manifest.auth.previousEncryptionKey` to the *current* key and
+   `manifest.auth.encryptionKey` to the new one, then upgrade. Introducing a dedicated key
+   on an install that had been falling back to the session secret is the same move, with
+   `manifest.auth.secret`'s value as the previous key.
+2. After boot one pod rewrites every stored provider key, OAuth token, agent key and
+   e-mail provider key onto the new key, in batches, while the old key keeps working. Wait
+   for `Nothing left under an older secret` in the log. Anything it could not decrypt
+   under either key it leaves untouched and names, rather than destroying it.
+3. Remove `manifest.auth.previousEncryptionKey` and upgrade again. Leaving it set keeps
+   the old key readable — and mounted in the Secret — indefinitely.
+
+Recording *bodies* are the exception: they are encrypted with the same key but are not
+rewritten, so a rotation makes existing ones unreadable and retention eventually removes
+them. Metadata in the database is unaffected.
 
 ## Reverse proxy and `publicUrl`
 
@@ -333,6 +355,11 @@ optional, and go to one of two places:
 
 Retention defaults to 365 days upstream; override with
 `manifest.recordings.retentionDays`.
+
+Bodies are encrypted at rest with `manifest.auth.encryptionKey` as of upstream 6.21.0
+(recordings written before that stay readable). Unlike stored credentials they are not
+rewritten during a key rotation, so see *Rotating the encryption key* above before
+changing it.
 
 ## Database migrations
 
@@ -404,7 +431,9 @@ What the chart cannot fix, because it is upstream behaviour:
 | Dashboard cache | A bounded in-memory LRU per pod, so two replicas can report different figures until the entries expire. Cosmetic. |
 
 Recording retention cleanup is *not* on that list: it takes its own advisory lock upstream
-and is safe across replicas.
+and is safe across replicas. Neither is the re-encryption pass that
+`manifest.auth.previousEncryptionKey` triggers — it takes a third lock, and takes it
+without waiting, so one pod does the rewrite and the others carry on serving.
 
 If a strict global rate limit matters to you, enforce it at the ingress rather than
 relying on `THROTTLE_LIMIT`.
@@ -463,6 +492,7 @@ in the left column.
 | -------------------- | ----- |
 | `BETTER_AUTH_SECRET` | `manifest.auth.secret` *(secret)* |
 | `MANIFEST_ENCRYPTION_KEY` | `manifest.auth.encryptionKey` *(secret)* |
+| `MANIFEST_ENCRYPTION_KEY_PREVIOUS` | `manifest.auth.previousEncryptionKey` *(secret)* |
 | `PORT` | `manifest.port` |
 | `HOST_BIND_ADDRESS`, `HOST_PORT` | not applicable — use `service` and `ingress` |
 | `BETTER_AUTH_URL` | `manifest.publicUrl` |

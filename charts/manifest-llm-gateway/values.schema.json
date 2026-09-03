@@ -95,6 +95,11 @@
             "encryptionKey": {
               "type": "string",
               "pattern": "^(|.{32,})$"
+            },
+            "previousEncryptionKey": {
+              "type": "string",
+              "description": "Empty, or the previous at-rest key. The upstream ignores anything under 32 characters, which would leave a rotation silently undone.",
+              "pattern": "^(|.{32,})$"
             }
           }
         },
