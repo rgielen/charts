@@ -12,8 +12,16 @@ the value would differ on every sync.
 
 For `manifest-llm-gateway` that is not a nuisance but data loss —
 `MANIFEST_ENCRYPTION_KEY`, or `BETTER_AUTH_SECRET` which it falls back to, encrypts every
-stored LLM provider API key and OAuth token at rest. A rotated key makes all of them
-undecryptable.
+stored LLM provider API key and OAuth token at rest. A key that changes without warning
+makes all of them undecryptable, and the read paths report that as "provider not
+connected" rather than as an error, so the damage is silent.
+
+A *deliberate* rotation is a different thing and has been supported since upstream 6.21.0:
+`manifest.auth.previousEncryptionKey` (`MANIFEST_ENCRYPTION_KEY_PREVIOUS`) keeps the old
+key readable while a pass after boot rewrites every row onto the new one. That does not
+soften this rule — it is the difference between an operator changing a key on purpose and
+a renderer changing it behind their back. Generated values are still forbidden, and stored
+recording bodies are not rewritten by that pass either.
 
 Instead: `manifest.existingSecret` (keys named after the upstream environment variables,
 mounted with `envFrom`) or plain values, and a `fail` in `_helpers.tpl` naming both ways
