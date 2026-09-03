@@ -1,12 +1,17 @@
 # Exercises the paths `helm template` alone does not prove: a real PVC bound by
 # kind's local-path provisioner, an Ingress object, a separate encryption key,
-# and the extraEnv escape hatch.
+# the key-rotation pass, and the extraEnv escape hatch.
 manifest:
   database:
     url: postgresql://manifest:manifest@postgres.manifest-llm-gateway-ci.svc.cluster.local:5432/manifest
   auth:
     secret: ci-only-session-secret-0123456789abcdef
     encryptionKey: ci-only-encryption-key-fedcba9876543210
+    # Nothing was ever encrypted with this, so the boot-time re-encryption pass
+    # scans the three encrypted tables, finds them empty and reports nothing
+    # left under an older secret. That is the point: it proves the rotation path
+    # renders, mounts and runs without leaving the install unhealthy.
+    previousEncryptionKey: ci-only-previous-encryption-key-0123456789
   disableHsts: true
   publicUrl: http://manifest.ci.example.com
   proxy:

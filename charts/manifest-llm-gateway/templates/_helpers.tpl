@@ -243,6 +243,9 @@ Sensitive environment, as `key: "value"` lines for a Secret's stringData.
 {{- $d := dict }}
 {{- include "manifest-llm-gateway.put" (list $d "BETTER_AUTH_SECRET" $m.auth.secret) }}
 {{- include "manifest-llm-gateway.put" (list $d "MANIFEST_ENCRYPTION_KEY" $m.auth.encryptionKey) }}
+{{- /* A secret in its own right, so it belongs here rather than in extraEnv --
+       that would write the old encryption key into the Deployment's podspec. */ -}}
+{{- include "manifest-llm-gateway.put" (list $d "MANIFEST_ENCRYPTION_KEY_PREVIOUS" $m.auth.previousEncryptionKey) }}
 {{- include "manifest-llm-gateway.put" (list $d "DATABASE_URL" $m.database.url) }}
 {{- include "manifest-llm-gateway.put" (list $d "MIGRATION_DATABASE_URL" $m.database.migrationUrl) }}
 {{- include "manifest-llm-gateway.put" (list $d "API_KEY" $m.apiKey) }}
