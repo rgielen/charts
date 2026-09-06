@@ -16,6 +16,9 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      # Full history *and tags*: chart-releaser reads them to know what is
+      # already published, and the release notes are rendered against the last
+      # published tag of each chart.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -76,6 +79,31 @@ jobs:
               exit 1
             fi
             helm push "$package" "oci://ghcr.io/${REGISTRY_OWNER}/charts"
+          done
+
+      # chart-releaser puts the chart's `description` in the release body and
+      # nothing else -- one sentence, identical for every version, and exactly
+      # what a consumer's Renovate pull request quotes back as "Release Notes".
+      # This replaces it with what the repository already knows: the commits
+      # behind the version, the appVersion it moved to, and the values diff.
+      #
+      # Everything is published by the time this runs, so a failure here means a
+      # thin release body, never an unpublished chart. It still fails the run --
+      # a body cannot be fixed in a pull request, only by noticing.
+      - name: Write the release notes
+        if: steps.cr.outputs.changed_charts != ''
+        env:
+          CHANGED_CHARTS: ${{ steps.cr.outputs.changed_charts }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IFS=',' read -ra paths <<< "$CHANGED_CHARTS"
+          for path in "${paths[@]}"; do
+            [[ -n "$path" ]] || continue
+            notes="$(mktemp)"
+            # The script prints the tag its notes belong to.
+            tag="$(python3 .github/scripts/release_notes.py "$path" --output "$notes")"
+            gh release edit "$tag" --notes-file "$notes"
+            echo "Release notes written for $tag."
           done
 
   # Renders the browsable pages that sit next to index.yaml on gh-pages. Called

@@ -42,16 +42,18 @@ def parse_version(value: str) -> tuple[int, int, int]:
     return tuple(int(part) for part in match.groups())  # type: ignore[return-value]
 
 
-def read_chart(path: Path) -> dict:
-    """Read the handful of Chart.yaml fields we need.
+def parse_chart(text: str) -> dict:
+    """Read the handful of Chart.yaml fields we need out of its text.
 
     Deliberately line-based rather than a YAML parse: the same code path writes
     the file back, and comments in Chart.yaml carry real information that a
-    round-trip through a plain YAML loader would drop.
+    round-trip through a plain YAML loader would drop. Taking text rather than a
+    path is what lets release_notes.py read a Chart.yaml straight out of a git
+    object, where there is no file to point at.
     """
     fields: dict[str, str] = {}
     in_annotations = False
-    for line in path.read_text().splitlines():
+    for line in text.splitlines():
         top = re.match(r"^([A-Za-z][\w]*):\s*(.*)$", line)
         if top:
             key, value = top.group(1), top.group(2).strip()
@@ -64,6 +66,10 @@ def read_chart(path: Path) -> dict:
             if nested:
                 fields[nested.group(1)] = nested.group(2).strip().strip('"').strip("'")
     return fields
+
+
+def read_chart(path: Path) -> dict:
+    return parse_chart(path.read_text())
 
 
 def list_tags(image: str) -> list[str]:
