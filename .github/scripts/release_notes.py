@@ -56,7 +56,15 @@ def git(*args: str) -> str:
 
 
 def chart_at(ref: str, chart_dir: str) -> dict:
-    """The chart's fields as of `ref`, or {} when it did not exist there yet."""
+    """The chart's fields as of `ref`, or {} when the chart is not in that tree.
+
+    The two ways `git show <ref>:<path>` fails are told apart on purpose. A ref
+    that does not resolve is a broken invocation and has to say so with git's own
+    message; a chart directory that is simply absent -- the chart was added after
+    that tag -- is an answer, and the caller renders first-release notes from it.
+    Resolving the ref first is what keeps a swallowed failure to the second kind.
+    """
+    git("rev-parse", "--verify", f"{ref}^{{commit}}")
     try:
         return parse_chart(git("show", f"{ref}:{chart_dir}/Chart.yaml"))
     except RuntimeError:
@@ -147,7 +155,7 @@ def other_files(base: str, head: str, chart_dir: str) -> list[str]:
 def render(chart_dir: str, head: str, repository: str) -> str:
     chart = chart_at(head, chart_dir)
     if not chart:
-        raise SystemExit(f"No Chart.yaml at {head}:{chart_dir}")
+        raise SystemExit(f"{head} resolves, but carries no {chart_dir}/Chart.yaml.")
 
     name = chart["name"]
     version = chart["version"]
