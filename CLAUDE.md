@@ -40,7 +40,8 @@ renovate.json           dependency updates for chart deps, images, and workflow 
 .github/actions/        helm-docs (pinned install + regeneration)
 .github/scripts/        regenerate-readmes.sh, upstream_sync.py, upstream_diff.py,
                         chart_audit.py, renovate_chart_bump.py, format_review_comment.py,
-                        build_pages.py + requirements.txt (the only non-stdlib script)
+                        release_notes.py, build_pages.py + requirements.txt (the only
+                        non-stdlib script)
 .github/site/           style.css, copied verbatim onto gh-pages
 .github/schemas/        upstream-review.json (the review's structured output)
 .claude/skills/         analyze-upstream (/analyze-upstream, also run by CI)
@@ -69,6 +70,22 @@ Two targets, one release, identical content:
   re-pushed.
 
 Both use the workflow's `GITHUB_TOKEN`; no repository secret is involved.
+
+The release body is written afterwards by `.github/scripts/release_notes.py`, because
+chart-releaser fills it with the chart's `description` and nothing else — one sentence,
+the same for every version, and the *only* thing a consumer's Renovate pull request
+shows under "Release Notes". The notes are derived, never kept by hand: the commits
+touching the chart since its last published tag, the `appVersion` they moved to with a
+link to the upstream release when that link resolves, and the `values.yaml` diff. It
+compares against the last published **tag**, not the previous `version:` — a version can
+be bumped twice before a release runs (2.3.1 was overtaken by 2.4.0 and never shipped),
+and notes spanning a version nobody can install describe a gap that is not in the index.
+Run it against an older tag to render, or repair, the notes of a release that already
+shipped:
+
+```bash
+python3 .github/scripts/release_notes.py charts/<name> --to <name>-<version>
+```
 
 Two pieces of one-time setup live outside the repository and are easy to forget when
 something appears broken:
