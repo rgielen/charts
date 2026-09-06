@@ -600,6 +600,15 @@ manifest:
     # @section -- Manifest: observability
     endpoint: ""
 
+  updateCheck:
+    # -- Disable the daily call to the GitHub releases API that backs the
+    # dashboard's "new version available" badge
+    # (`MANIFEST_UPDATE_CHECK_DISABLED`). Deliberately separate from
+    # `telemetry`: that one stops the report about this install, this one stops
+    # the outbound call itself, which is what an air-gapped cluster needs.
+    # @section -- Manifest: observability
+    disabled: false
+
 # -- Extra environment variables, in Kubernetes `env` form. Applied last, so
 # they override everything the chart sets — the escape hatch for upstream
 # settings this chart does not model, such as `FRAME_ANCESTORS`.
