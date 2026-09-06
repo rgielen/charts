@@ -1,6 +1,6 @@
 ---
 name: local-chart-toolchain-missing
-description: crane, helm-docs and ct are not installed on this workstation; fetch the CI-pinned versions into the scratchpad and run ct through its container
+description: crane, helm-docs and ct are not installed on this workstation; fetch the CI-pinned versions into the scratchpad, and ct needs three extras to run from its tarball
 metadata:
   type: project
 ---
@@ -18,23 +18,29 @@ different problem:
 - **`helm-docs`** — `regenerate-readmes.sh` exits with `command not found`.
 - **`ct`** — not installed at all.
 
-What works, without installing anything system-wide:
+What works, without installing anything system-wide (versions as of 2026-09-06; take them
+from CI, so that a local pass means the same thing as a CI pass):
 
 ```bash
-SP=<scratchpad>/bin; mkdir -p "$SP"
-curl -sSfL https://github.com/google/go-containerregistry/releases/download/v0.22.0/go-containerregistry_Linux_x86_64.tar.gz | tar -xz -C "$SP" crane
-curl -sSfL https://github.com/norwoodj/helm-docs/releases/download/v1.14.2/helm-docs_1.14.2_Linux_x86_64.tar.gz | tar -xz -C "$SP" helm-docs
-export PATH="$SP:$PATH"
+SP=<scratchpad>; mkdir -p "$SP/bin"
+curl -sSfL https://github.com/google/go-containerregistry/releases/download/v0.22.1/go-containerregistry_Linux_x86_64.tar.gz | tar -xz -C "$SP/bin" crane
+curl -sSfL https://github.com/norwoodj/helm-docs/releases/download/v1.14.2/helm-docs_1.14.2_Linux_x86_64.tar.gz | tar -xz -C "$SP/bin" helm-docs
 
-# ct has no single-binary release worth chasing; the image carries yamllint and yamale too
-docker run --rm -v "$(pwd)":/work -w /work quay.io/helmpack/chart-testing:v3.12.0 \
-  ct lint --config ct.yaml --all
+# ct runs fine from its own tarball -- no container needed -- but it needs three things
+# the release does not carry: yamale and yamllint on PATH, and the two config files it
+# would otherwise look for under /etc/ct/. They are in the tarball's own etc/.
+curl -sSfL https://github.com/helm/chart-testing/releases/download/v3.14.0/chart-testing_3.14.0_linux_amd64.tar.gz | tar -xz -C "$SP"
+python3 -m venv "$SP/venv" && "$SP/venv/bin/pip" -q install yamale==6.0.0 yamllint==1.33.0
+
+export PATH="$SP:$SP/bin:$SP/venv/bin:$PATH"
+ct lint --config ct.yaml --all \
+  --chart-yaml-schema "$SP/etc/chart_schema.yaml" --lint-conf "$SP/etc/lintconf.yaml"
 ```
 
-Take the versions from CI so a local pass means the same thing as a CI pass:
-`CRANE_VERSION` and `HELM_DOCS_VERSION` in `.github/workflows/upstream-sync.yaml` and
-`.github/actions/helm-docs/action.yml`, and the chart-testing version behind
-`helm/chart-testing-action`. Note that `ct lint --all` prints
+The pins live in `.github/workflows/upstream-sync.yaml` (`CRANE_VERSION`),
+`.github/actions/helm-docs/action.yml` (`HELM_DOCS_VERSION`), and the `version`,
+`yamale_version` and `yamllint_version` defaults of the `helm/chart-testing-action`
+release that `lint-test.yaml` uses. Note that `ct lint --all` prints
 `Version increment checking disabled` — `--all` turns that check off, so it never catches
 the missing bump described at the top of `CLAUDE.md`.
 
@@ -43,6 +49,5 @@ answers "nothing unmodelled" for a chart it never compared, which is exactly the
 [[analyze-upstream-skill]] must never give wrongly.
 
 **How to apply:** before running `/analyze-upstream` or the local checks here, put the
-pinned `crane` and `helm-docs` in the scratchpad and on `PATH`, and reach for the
-chart-testing container for `ct`. Keep them out of the repo. See [[open-followups]] if
-installing them properly ever becomes worthwhile.
+pinned binaries in the scratchpad and on `PATH`. Keep them out of the repo. See
+[[open-followups]] if installing them properly ever becomes worthwhile.

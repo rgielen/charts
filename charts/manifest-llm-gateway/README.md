@@ -230,6 +230,7 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.sentry.release | string | `""` | Release tag (`SENTRY_RELEASE`). |
 | manifest.telemetry.disabled | bool | `false` | Disable the anonymous usage report the upstream sends once per 24h (`MANIFEST_TELEMETRY_DISABLED`). Aggregates only: no prompts, no message contents, no API keys. |
 | manifest.telemetry.endpoint | string | `""` | Send the report to your own collector instead (`TELEMETRY_ENDPOINT`). |
+| manifest.updateCheck.disabled | bool | `false` | Disable the daily call to the GitHub releases API that backs the dashboard's "new version available" badge (`MANIFEST_UPDATE_CHECK_DISABLED`). Deliberately separate from `telemetry`: that one stops the report about this install, this one stops the outbound call itself, which is what an air-gapped cluster needs. |
 
 ### Persistence
 
@@ -533,6 +534,7 @@ in the left column.
 | `SENTRY_DSN` | `manifest.sentry.dsn` *(secret)* |
 | `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE` | `manifest.sentry.environment`, `.release` |
 | `MANIFEST_TELEMETRY_DISABLED`, `TELEMETRY_ENDPOINT` | `manifest.telemetry.disabled`, `.endpoint` |
+| `MANIFEST_UPDATE_CHECK_DISABLED` | `manifest.updateCheck.disabled` |
 | `SEED_DATA`, `NODE_ENV` | fixed, as in the upstream compose file |
 | anything else | `extraEnv` |
 

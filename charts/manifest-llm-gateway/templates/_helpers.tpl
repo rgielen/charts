@@ -224,6 +224,7 @@ Non-sensitive environment, as `key: "value"` lines for a ConfigMap.
 {{- include "manifest-llm-gateway.put" (list $d "SENTRY_RELEASE" $m.sentry.release) }}
 {{- include "manifest-llm-gateway.put" (list $d "MANIFEST_TELEMETRY_DISABLED" (ternary "1" "0" $m.telemetry.disabled)) }}
 {{- include "manifest-llm-gateway.put" (list $d "TELEMETRY_ENDPOINT" $m.telemetry.endpoint) }}
+{{- include "manifest-llm-gateway.put" (list $d "MANIFEST_UPDATE_CHECK_DISABLED" (ternary "1" "0" $m.updateCheck.disabled)) }}
 
 {{- /* Hardcoded for the same reason the upstream compose file hardcodes them:
        the image is a production artefact, and the seeder refuses to run under

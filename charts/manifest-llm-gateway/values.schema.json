@@ -171,6 +171,12 @@
           "properties": {
             "disabled": { "type": "boolean" }
           }
+        },
+        "updateCheck": {
+          "type": "object",
+          "properties": {
+            "disabled": { "type": "boolean" }
+          }
         }
       }
     },
