@@ -22,7 +22,7 @@
 <p class="crumbs"><a href="../">Charts</a> <span>/</span> manifest-llm-gateway</p>
 <h1>manifest-llm-gateway</h1>
 <p class="lede">Manifest, the self-hosted LLM gateway, proxy and dashboard.</p>
-<p class="badges"><span class="badge"><span>Chart</span><b>2.3.0</b></span><span class="badge"><span>App</span><b>6.21.0</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
+<p class="badges"><span class="badge"><span>Chart</span><b>2.4.0</b></span><span class="badge"><span>App</span><b>6.22.0</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
 <p class="page-links"><a href="https://manifest.build">manifest.build</a></p>
 
 <div class="layout">
@@ -57,10 +57,10 @@ Kubernetes.</p>
 <p>From the Helm repository:</p>
 <pre><code class="language-bash">helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.3.0
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.4.0
 </code></pre>
 <p>Or directly from the OCI registry:</p>
-<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.3.0
+<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.4.0
 </code></pre>
 <h2 id="source-code">Source Code<a class="anchor" href="#source-code" title="Permanent link">#</a></h2>
 <ul>
@@ -923,6 +923,12 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.3.
 <td><code>""</code></td>
 <td>Send the report to your own collector instead (<code>TELEMETRY_ENDPOINT</code>).</td>
 </tr>
+<tr>
+<td>manifest.updateCheck.disabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Disable the daily call to the GitHub releases API that backs the dashboard's "new version available" badge (<code>MANIFEST_UPDATE_CHECK_DISABLED</code>). Deliberately separate from <code>telemetry</code>: that one stops the report about this install, this one stops the outbound call itself, which is what an air-gapped cluster needs.</td>
+</tr>
 </tbody>
 </table></div>
 <h3 id="persistence">Persistence<a class="anchor" href="#persistence" title="Permanent link">#</a></h3>
@@ -1182,7 +1188,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.3.0
+    targetRevision: 2.4.0
     helm:
       valuesObject:
         manifest:
@@ -1384,6 +1390,10 @@ in the left column.</p>
 <td><code>manifest.telemetry.disabled</code>, <code>.endpoint</code></td>
 </tr>
 <tr>
+<td><code>MANIFEST_UPDATE_CHECK_DISABLED</code></td>
+<td><code>manifest.updateCheck.disabled</code></td>
+</tr>
+<tr>
 <td><code>SEED_DATA</code>, <code>NODE_ENV</code></td>
 <td>fixed, as in the upstream compose file</td>
 </tr>
@@ -1478,6 +1488,13 @@ re-released with different content.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.4.0"><code>2.4.0</code></a></td>
+<td><code>6.22.0</code></td>
+<td>2026-09-06</td>
+<td><a href="https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.4.0/manifest-llm-gateway-2.4.0.tgz"><code>.tgz</code></a></td>
+<td><code>3f5c17c8311b0ae27c9…</code></td>
+</tr>
 <tr>
 <td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.3.0"><code>2.3.0</code></a></td>
 <td><code>6.21.0</code></td>
@@ -1594,7 +1611,7 @@ unattended only when the bump is not a major one and the diff is clean.</p>
 </tr>
 <tr>
 <td>Release notes</td>
-<td><a href="https://github.com/mnfst/manifest/releases/tag/manifest@6.21.0">manifest@6.21.0</a> — not every image tag has one</td>
+<td><a href="https://github.com/mnfst/manifest/releases/tag/manifest@6.22.0">manifest@6.22.0</a> — not every image tag has one</td>
 </tr>
 <tr>
 <td>Watched files</td>
