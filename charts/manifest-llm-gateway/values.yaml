@@ -536,7 +536,11 @@ manifest:
       # @section -- Manifest: operations
       backoffLimit: 3
       # -- Hard timeout for the whole Job. A first migration on an empty
-      # database builds every index and is not instant.
+      # database builds every index and is not instant. Raise it for
+      # `manifest.mode: cloud`: the upstream's cloud-only migrations build
+      # indexes on `requests` with `CREATE INDEX CONCURRENTLY` and budget
+      # minutes for one of them. Under `selfhosted` they return without
+      # touching the schema, which is why the default fits.
       # @section -- Manifest: operations
       activeDeadlineSeconds: 900
       # -- Resource requests and limits for the migration pod.
