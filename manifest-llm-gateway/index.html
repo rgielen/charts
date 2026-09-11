@@ -22,7 +22,7 @@
 <p class="crumbs"><a href="../">Charts</a> <span>/</span> manifest-llm-gateway</p>
 <h1>manifest-llm-gateway</h1>
 <p class="lede">Manifest, the self-hosted LLM gateway, proxy and dashboard.</p>
-<p class="badges"><span class="badge"><span>Chart</span><b>2.4.0</b></span><span class="badge"><span>App</span><b>6.22.0</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
+<p class="badges"><span class="badge"><span>Chart</span><b>2.5.0</b></span><span class="badge"><span>App</span><b>6.23.1</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
 <p class="page-links"><a href="https://manifest.build">manifest.build</a></p>
 
 <div class="layout">
@@ -57,10 +57,10 @@ Kubernetes.</p>
 <p>From the Helm repository:</p>
 <pre><code class="language-bash">helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.4.0
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.5.0
 </code></pre>
 <p>Or directly from the OCI registry:</p>
-<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.4.0
+<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.5.0
 </code></pre>
 <h2 id="source-code">Source Code<a class="anchor" href="#source-code" title="Permanent link">#</a></h2>
 <ul>
@@ -751,7 +751,7 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.4.
 <td>manifest.migrations.job.activeDeadlineSeconds</td>
 <td>int</td>
 <td><code>900</code></td>
-<td>Hard timeout for the whole Job. A first migration on an empty database builds every index and is not instant.</td>
+<td>Hard timeout for the whole Job. A first migration on an empty database builds every index and is not instant. Raise it for <code>manifest.mode: cloud</code>: the upstream's cloud-only migrations build indexes on <code>requests</code> with <code>CREATE INDEX CONCURRENTLY</code> and budget minutes for one of them. Under <code>selfhosted</code> they return without touching the schema, which is why the default fits.</td>
 </tr>
 <tr>
 <td>manifest.migrations.job.annotations</td>
@@ -1188,7 +1188,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.4.0
+    targetRevision: 2.5.0
     helm:
       valuesObject:
         manifest:
@@ -1429,6 +1429,10 @@ in the left column.</p>
 <td>Gates an internal endpoint for publishing curated error pages. Empty rejects every write, which is the right state for a self-hosted install.</td>
 </tr>
 <tr>
+<td><code>CRM_METRICS_SECRET</code></td>
+<td>Guards <code>/api/v1/internal/crm-metrics</code>, the feed the hosted service's outreach CRM polls. Cloud-only, and the upstream counts anything shorter than 32 characters as unset, so leaving it empty keeps the route shut — which is what you want from an endpoint that exports user email addresses across tenants.</td>
+</tr>
+<tr>
 <td><code>MANIFEST_PUBLIC_STATS</code></td>
 <td>Exposes aggregate <code>/api/v1/public/*</code> endpoints <strong>without authentication</strong>. The upstream marks it as being for its own marketing site.</td>
 </tr>
@@ -1488,6 +1492,13 @@ re-released with different content.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.5.0"><code>2.5.0</code></a></td>
+<td><code>6.23.1</code></td>
+<td>2026-09-11</td>
+<td><a href="https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.5.0/manifest-llm-gateway-2.5.0.tgz"><code>.tgz</code></a></td>
+<td><code>f03b2469467cd659c51…</code></td>
+</tr>
 <tr>
 <td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.4.0"><code>2.4.0</code></a></td>
 <td><code>6.22.0</code></td>
@@ -1611,7 +1622,7 @@ unattended only when the bump is not a major one and the diff is clean.</p>
 </tr>
 <tr>
 <td>Release notes</td>
-<td><a href="https://github.com/mnfst/manifest/releases/tag/manifest@6.22.0">manifest@6.22.0</a> — not every image tag has one</td>
+<td><a href="https://github.com/mnfst/manifest/releases/tag/manifest@6.23.1">manifest@6.23.1</a> — not every image tag has one</td>
 </tr>
 <tr>
 <td>Watched files</td>
