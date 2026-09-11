@@ -336,6 +336,7 @@ The upstream reads these and this chart does not expose them. They are decisions
 | `BACKFILL_DATABASE_URL` | The third fallback after `MIGRATION_DATABASE_URL`, which `manifest.database.migrationUrl` already sets, so the backfill resolver is already satisfied. Cloud-only besides. |
 | `PLUGIN_OTLP_ENDPOINT` | Documented in the upstream's `.env.example` but read nowhere in the server. |
 | `ERROR_PAGE_PUSH_SECRET` | Gates an internal endpoint for publishing curated error pages. Empty rejects every write, which is the right state for a self-hosted install. |
+| `CRM_METRICS_SECRET` | Guards `/api/v1/internal/crm-metrics`, the feed the hosted service's outreach CRM polls. Cloud-only, and the upstream counts anything shorter than 32 characters as unset, so leaving it empty keeps the route shut — which is what you want from an endpoint that exports user email addresses across tenants. |
 | `MANIFEST_PUBLIC_STATS` | Exposes aggregate `/api/v1/public/*` endpoints **without authentication**. The upstream marks it as being for its own marketing site. |
 | `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `NOTIFICATION_FROM_EMAIL` | Legacy fallbacks superseded by the `EMAIL_*` settings above. Modelling both invites a configuration that contradicts itself. |
 | `BIND_ADDRESS`, `NODE_ENV` | Already set inside the image. Overriding them only adds a way to break the deployment. |

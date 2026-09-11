@@ -195,7 +195,7 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | manifest.migrations.job | object | `{"activeDeadlineSeconds":900,"annotations":{},"backoffLimit":3,"enabled":true,"podAnnotations":{},"resources":{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}},"serviceAccountName":""}` | Apply migrations from a `pre-install`/`pre-upgrade` hook Job instead of on application boot. The Job runs the upstream's own migration entry point, which wraps the run in a PostgreSQL advisory lock, and it runs exactly once per release — so the schema is in place before any pod starts, and a failed migration is a failed Job with readable logs rather than a pod stuck in CrashLoopBackOff. |
-| manifest.migrations.job.activeDeadlineSeconds | int | `900` | Hard timeout for the whole Job. A first migration on an empty database builds every index and is not instant. |
+| manifest.migrations.job.activeDeadlineSeconds | int | `900` | Hard timeout for the whole Job. A first migration on an empty database builds every index and is not instant. Raise it for `manifest.mode: cloud`: the upstream's cloud-only migrations build indexes on `requests` with `CREATE INDEX CONCURRENTLY` and budget minutes for one of them. Under `selfhosted` they return without touching the schema, which is why the default fits. |
 | manifest.migrations.job.annotations | object | `{}` | Extra annotations for the Job object. |
 | manifest.migrations.job.backoffLimit | int | `3` | Retries before the Job is considered failed. |
 | manifest.migrations.job.enabled | bool | `true` | Create the migration Job. |
@@ -551,6 +551,7 @@ The upstream reads these and this chart does not expose them. They are decisions
 | `BACKFILL_DATABASE_URL` | The third fallback after `MIGRATION_DATABASE_URL`, which `manifest.database.migrationUrl` already sets, so the backfill resolver is already satisfied. Cloud-only besides. |
 | `PLUGIN_OTLP_ENDPOINT` | Documented in the upstream's `.env.example` but read nowhere in the server. |
 | `ERROR_PAGE_PUSH_SECRET` | Gates an internal endpoint for publishing curated error pages. Empty rejects every write, which is the right state for a self-hosted install. |
+| `CRM_METRICS_SECRET` | Guards `/api/v1/internal/crm-metrics`, the feed the hosted service's outreach CRM polls. Cloud-only, and the upstream counts anything shorter than 32 characters as unset, so leaving it empty keeps the route shut — which is what you want from an endpoint that exports user email addresses across tenants. |
 | `MANIFEST_PUBLIC_STATS` | Exposes aggregate `/api/v1/public/*` endpoints **without authentication**. The upstream marks it as being for its own marketing site. |
 | `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `NOTIFICATION_FROM_EMAIL` | Legacy fallbacks superseded by the `EMAIL_*` settings above. Modelling both invites a configuration that contradicts itself. |
 | `BIND_ADDRESS`, `NODE_ENV` | Already set inside the image. Overriding them only adds a way to break the deployment. |
