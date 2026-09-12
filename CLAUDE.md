@@ -205,10 +205,15 @@ The same token rule has a second edge, and it is the sharper one: the merge itse
 to `main` with `GITHUB_TOKEN`, so `release.yaml` — which listens for `push` — never sees it.
 An unattended merge therefore landed a chart on `main` and published **nothing**: a green
 night, no error anywhere, and the next run finds `appVersion` already current and stays
-quiet. 2.3.1 and 2.5.1 were lost that way before the merge job started dispatching
-`release.yaml` itself. `workflow_dispatch` is the documented exception to the rule — one of
-the two events `GITHUB_TOKEN` may still raise — so no personal access token is needed here
-either.
+quiet. Both 2.3.1 and 2.5.1 landed that way before the merge job started dispatching
+`release.yaml` itself — 2.3.1 was never published at all, 2.5.1 only once someone dispatched
+the release by hand, hours after the merge that should have done it.
+
+`workflow_dispatch` is the documented exception to the token rule — one of the two events
+`GITHUB_TOKEN` may still raise — so no personal access token is needed here either. It does
+need `actions: write` in the workflow's `permissions`, which is easy to miss: without it the
+dispatch fails with a 403 *after* the merge, which is this failure again with a red run
+instead of a silent one.
 
 Two consequences of that dispatch:
 
