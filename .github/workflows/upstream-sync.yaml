@@ -27,6 +27,10 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # The merge job dispatches release.yaml, and the Actions dispatch API refuses
+  # a token without this -- with a 403 after the merge has already happened,
+  # which is the exact failure this workflow now exists to prevent.
+  actions: write
 
 concurrency:
   group: upstream-sync

@@ -21,11 +21,13 @@ duplicating `ct lint` / `ct install` into the sync workflow (drifts).
 
 The **merge** has the same problem and it is the more dangerous half: `gh pr merge` in
 that workflow pushes to `main` with the same token, so `release.yaml` (`on: push`) never
-runs. Chart 2.3.1 (#43, 2026-09-04) and 2.5.1 (#48, 2026-09-12) landed on `main` and were
-never published — no failed job, no warning, and the next nightly run sees `appVersion`
-already current and says nothing. Every release that *did* happen had been merged by a
+runs. Chart 2.3.1 (#43, 2026-09-04) and 2.5.1 (#48, 2026-09-12) landed on `main` unpublished
+— no failed job, no warning, and the next nightly run sees `appVersion` already current and
+says nothing. 2.3.1 never shipped; 2.5.1 was released by a manual `workflow_dispatch` hours
+later, once the gap was noticed. Every release that happened on its own had been merged by a
 human. Fixed by dispatching `release.yaml` from the merge job: `workflow_dispatch` and
-`repository_dispatch` are the two events `GITHUB_TOKEN` may still raise.
+`repository_dispatch` are the two events `GITHUB_TOKEN` may still raise — and the dispatch
+needs `actions: write`, which the workflow's own permissions block did not grant.
 
 **How to apply:** any future automation that opens a PR and then wants it verified must
 call the reusable workflow rather than wait for a check run; anything that *merges* must
