@@ -1,6 +1,6 @@
 ---
 name: github-token-does-not-trigger-workflows
-description: A PR opened with GITHUB_TOKEN never triggers pull_request workflows, so upstream-sync calls lint-test via workflow_call instead of waiting for it
+description: GITHUB_TOKEN triggers no workflow run -- not for a PR it opens, and not for the push its merge makes; upstream-sync answers with workflow_call and workflow_dispatch
 metadata:
   type: project
 ---
@@ -19,7 +19,17 @@ token to rotate or let expire.
 secret (expires, and `CLAUDE.md` advertises that no repository secret is involved), or
 duplicating `ct lint` / `ct install` into the sync workflow (drifts).
 
+The **merge** has the same problem and it is the more dangerous half: `gh pr merge` in
+that workflow pushes to `main` with the same token, so `release.yaml` (`on: push`) never
+runs. Chart 2.3.1 (#43, 2026-09-04) and 2.5.1 (#48, 2026-09-12) landed on `main` and were
+never published — no failed job, no warning, and the next nightly run sees `appVersion`
+already current and says nothing. Every release that *did* happen had been merged by a
+human. Fixed by dispatching `release.yaml` from the merge job: `workflow_dispatch` and
+`repository_dispatch` are the two events `GITHUB_TOKEN` may still raise.
+
 **How to apply:** any future automation that opens a PR and then wants it verified must
-call the reusable workflow rather than wait for a check run. If a check ever *must* run on
-the PR itself (a required status check on a protected branch, say), that is the point where
-a GitHub App token becomes unavoidable.
+call the reusable workflow rather than wait for a check run; anything that *merges* must
+start the follow-on workflow explicitly, because no push it makes will. When a pipeline
+here reports success but nothing shipped, check the actor on the merge commit first. If a
+check ever *must* run on the PR itself (a required status check on a protected branch,
+say), that is the point where a GitHub App token becomes unavoidable.

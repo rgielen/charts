@@ -293,6 +293,28 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh pr merge "${{ matrix.branch }}" --squash --delete-branch
 
+      # The merge above pushes to main with GITHUB_TOKEN, and a push made with
+      # that token triggers nothing -- so release.yaml, which listens for `push`
+      # on main, never sees it. The chart lands on main and is never published:
+      # a green night, no release, no error, and the next nightly run finds the
+      # appVersion already current and has nothing to say. 2.3.1 (#43) and 2.5.1
+      # (#48) were both lost exactly this way; every release that did happen was
+      # merged by a human, whose push does trigger the workflow.
+      #
+      # workflow_dispatch is the documented exception to that rule -- one of the
+      # two events GITHUB_TOKEN may still raise -- which is why release.yaml
+      # carries the trigger already. No status check is skipped by going this
+      # way: the verify job has run lint and install against this branch before
+      # the merge step above was allowed to run at all.
+      #
+      # Implicit `success()`: a failed merge skips this step rather than
+      # releasing a main that does not contain the bump.
+      - name: Release what was just merged
+        if: matrix.bumpType != 'major' && matrix.verdict == 'clean'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run release.yaml --ref main
+
       - name: Leave it for review
         if: matrix.bumpType == 'major' || matrix.verdict != 'clean'
         run: |

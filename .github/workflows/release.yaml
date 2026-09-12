@@ -12,6 +12,15 @@ permissions:
   contents: write # chart-releaser creates GitHub releases and pushes to gh-pages
   packages: write # helm push to ghcr.io
 
+# chart-releaser rewrites index.yaml on gh-pages, so two releases at once race
+# for the same file and one of them loses its index entry while still having
+# published its tag and its package. The upstream sync starts one dispatch per
+# merged chart, which is one matrix entry each, so this is reachable as soon as
+# a second chart exists. Never cancel: the running one is publishing.
+concurrency:
+  group: release-charts
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
