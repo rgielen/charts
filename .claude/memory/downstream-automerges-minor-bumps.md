@@ -15,6 +15,13 @@ kind, the coupled appVersion/version bump, and the drift check holding a bump wh
 the upstream configuration surface moved. The remaining reason to merge by hand was
 an unreadable release body, which `release_notes.py` fixed.
 
+The rule matched from day one but merged nothing: Renovate hands an automerged pull
+request to GitHub's auto-merge by default, and that is unusable in `k3s-nuc` — the
+repository setting is off, and GitHub only offers auto-merge for a pull request *blocked*
+by a required check or review, of which that repository has none. `platformAutomerge: false`
+(rgielen/k3s-nuc#97) makes Renovate merge through the API itself. Until that lands, a
+published bump still waits for a human there.
+
 **How to apply:** a non-major chart version published here now reaches a running
 single-node cluster without anyone reading the pull request. With `selfHeal` that is
 an immediate rollout, so a change that restarts the pod is a short unattended outage
