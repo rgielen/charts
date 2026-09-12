@@ -185,10 +185,10 @@ not merge: whether the new version suits the chart is a judgement call.
 A chart whose `appVersion` follows a container image carries four `Chart.yaml`
 annotations (`charts.rgielen.de/upstream-image`, `-tag-pattern`, `-releases`,
 `-watch-paths`). `upstream-sync.yaml` watches the image nightly, bumps `appVersion` **and**
-`version` together, regenerates the README, opens a pull request, and merges it only when
-the bump is not a major one **and** the drift check is clean. That coupled bump is
-precisely what Renovate cannot do, which is why `renovate.json` still forbids automerge for
-image updates.
+`version` together, regenerates the README, opens a pull request, merges it only when
+the bump is not a major one **and** the drift check is clean, and then **starts the release
+itself**. That coupled bump is precisely what Renovate cannot do, which is why
+`renovate.json` still forbids automerge for image updates.
 
 The drift check (`.github/scripts/upstream_diff.py`) resolves both image tags to upstream
 commits through `org.opencontainers.image.revision` — release notes are not usable here,
@@ -200,6 +200,26 @@ The workflow verifies its own pull request by *calling* `lint-test.yaml` through
 `workflow_call` rather than waiting for it: a pull request opened with `GITHUB_TOKEN` never
 triggers `pull_request` workflows, so waiting would wait forever. This keeps one
 implementation of lint and install, and needs no personal access token.
+
+The same token rule has a second edge, and it is the sharper one: the merge itself pushes
+to `main` with `GITHUB_TOKEN`, so `release.yaml` — which listens for `push` — never sees it.
+An unattended merge therefore landed a chart on `main` and published **nothing**: a green
+night, no error anywhere, and the next run finds `appVersion` already current and stays
+quiet. 2.3.1 and 2.5.1 were lost that way before the merge job started dispatching
+`release.yaml` itself. `workflow_dispatch` is the documented exception to the rule — one of
+the two events `GITHUB_TOKEN` may still raise — so no personal access token is needed here
+either.
+
+Two consequences of that dispatch:
+
+- **`release.yaml` carries a `concurrency` group.** One dispatch per merged chart means two
+  releases can run at once as soon as a second chart exists, and both rewrite `index.yaml`
+  on `gh-pages`. Never `cancel-in-progress`: the run being cancelled is publishing.
+- **A red check on an `upstream/*` pull request is usually not a failure.** GitHub records
+  the `pull_request` runs for a bot-opened pull request and never dispatches them; they sit
+  pending until `--delete-branch` removes the branch, then close as `failure` with no jobs
+  and no logs. A run with an empty job list is that artefact. The verification that counts
+  is the `verify` job inside the sync run.
 
 ## Consumers
 
