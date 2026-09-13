@@ -13,5 +13,5 @@
 - [Both layers of the drift check are built](upstream-drift-layer-2-planned.md) — layer 2 invokes the /analyze-upstream skill; escalate-only is a property of the job graph
 - [Local chart toolchain is missing](local-chart-toolchain-missing.md) — no crane, helm-docs or ct here; fetch the CI-pinned versions into the scratchpad, ct needs yamale, yamllint and its own etc/
 - [The /analyze-upstream skill](analyze-upstream-skill.md) — interactive companion to the CI drift check, and the intended implementation of layer 2
-- [Downstream automerges minor bumps](downstream-automerges-minor-bumps.md) — k3s-nuc merges non-major chart bumps unattended; needed platformAutomerge:false to fire at all
+- [OPEN: downstream automerge never fires](downstream-automerges-minor-bumps.md) — the rule matches in k3s-nuc but no bump has merged unattended yet; rebase treadmill is the next theory
 - [DEFERRED: hermes-webui chart](hermes-webui-chart-deferred.md) — analysed and decided, not built; plan in `.claude/plans/hermes-webui.md`, issue #41
