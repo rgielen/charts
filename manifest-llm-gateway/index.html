@@ -22,7 +22,7 @@
 <p class="crumbs"><a href="../">Charts</a> <span>/</span> manifest-llm-gateway</p>
 <h1>manifest-llm-gateway</h1>
 <p class="lede">Manifest, the self-hosted LLM gateway, proxy and dashboard.</p>
-<p class="badges"><span class="badge"><span>Chart</span><b>2.5.1</b></span><span class="badge"><span>App</span><b>6.23.4</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
+<p class="badges"><span class="badge"><span>Chart</span><b>2.6.0</b></span><span class="badge"><span>App</span><b>6.24.0</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
 <p class="page-links"><a href="https://manifest.build">manifest.build</a></p>
 
 <div class="layout">
@@ -57,14 +57,14 @@ Kubernetes.</p>
 <p>From the Helm repository:</p>
 <pre><code class="language-bash">helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.5.1
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.6.0
 </code></pre>
 <p>Or directly from the OCI registry:</p>
-<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.5.1
+<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.6.0
 </code></pre>
 <h2 id="source-code">Source Code<a class="anchor" href="#source-code" title="Permanent link">#</a></h2>
 <ul>
-<li><a href="https://github.com/mnfst/manifest">https://github.com/mnfst/manifest</a></li>
+<li><a href="https://github.com/mnfst/llm-gateway">https://github.com/mnfst/llm-gateway</a></li>
 <li><a href="https://github.com/rgielen/charts">https://github.com/rgielen/charts</a></li>
 </ul>
 <h2 id="values">Values<a class="anchor" href="#values" title="Permanent link">#</a></h2>
@@ -480,6 +480,18 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.5.
 <td>Session signing secret (<code>BETTER_AUTH_SECRET</code>), at least 32 characters. Generate with <code>openssl rand -hex 32</code>. Required unless <code>existingSecret</code> provides it — the chart refuses to render without one. It is never generated for you: this chart is meant to be rendered by ArgoCD, where <code>lookup</code> returns nothing and a generated value would be different on every sync, taking every stored provider credential with it.</td>
 </tr>
 <tr>
+<td>manifest.cliToken.absoluteTtlDays</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Hard ceiling in days from issuance (<code>CLI_TOKEN_ABSOLUTE_TTL_DAYS</code>). The sliding window above renews on every use, so this is what finally retires a token that is in constant use. Empty for the upstream default of 90; set below <code>ttlDays</code> it retires tokens before the sliding window ever matters. Both take a plain positive integer -- upstream ignores <code>0</code> and anything like <code>30d</code>, and silently applies its own default instead.</td>
+</tr>
+<tr>
+<td>manifest.cliToken.ttlDays</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Sliding lifetime in days of a management token minted by the CLI (<code>CLI_TOKEN_TTL_DAYS</code>). Every successful authentication pushes the token's expiry this far out, so a CLI in regular use never has to log in again while an abandoned one lapses. Empty for the upstream default of 30.</td>
+</tr>
+<tr>
 <td>manifest.corsOrigins</td>
 <td>list</td>
 <td><code>[]</code></td>
@@ -513,7 +525,7 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.5.
 <td>manifest.publicUrl</td>
 <td>string</td>
 <td>derived from the first <code>ingress.hosts</code> entry when an Ingress is enabled</td>
-<td>Public URL the dashboard is reached at (<code>BETTER_AUTH_URL</code>). Must match what the browser actually uses, or logins and OAuth callbacks break. No trailing slash — the application appends paths such as <code>/api/auth/...</code> to this value. Serve it over https wherever it is reachable from the internet: the application only sends HSTS for an <code>https://</code> origin.</td>
+<td>Public URL the dashboard is reached at (<code>BETTER_AUTH_URL</code>). Must match what the browser actually uses, or logins and OAuth callbacks break. No trailing slash — the application appends paths such as <code>/api/auth/...</code> to this value. <strong>Must be <code>https://</code></strong> unless it is a loopback address: since appVersion 6.24.0 the upstream builds its MCP resource URL from this value and refuses a non-HTTPS one while loading, so a plain-http host leaves the pod in CrashLoopBackOff. The chart refuses to render that instead.</td>
 </tr>
 </tbody>
 </table></div>
@@ -1054,9 +1066,16 @@ them. Metadata in the database is unaffected.</p>
 uses, or logins and OAuth callbacks fail in ways that look like unrelated bugs. When an
 Ingress is enabled and <code>publicUrl</code> is empty, the chart derives it from the first Ingress
 host, using <code>https</code> if that host appears in <code>ingress.tls</code>.</p>
-<p>Serve it over HTTPS anywhere reachable from the internet: the application only sends HSTS
-for an <code>https://</code> origin and logs a warning on every boot otherwise. On an HTTP-only LAN
-install, set <code>manifest.disableHsts=true</code> to silence that warning.</p>
+<p><strong>It has to be <code>https://</code></strong>, unless it is a loopback address. Since appVersion 6.24.0 the
+upstream wires Better Auth's MCP plugin unconditionally and builds the plugin's resource
+URL out of <code>BETTER_AUTH_URL</code>; the plugin rejects a non-HTTPS resource URL while the module
+loads, so the process exits before it listens and the pod never leaves <code>CrashLoopBackOff</code>
+(<code>MCP resource URL must use HTTPS</code>). The chart refuses to render such a configuration
+rather than let you find out that way. An HTTP-only LAN install therefore needs either a
+TLS-terminating proxy in front — a self-signed certificate is enough, the check looks at
+the scheme — or chart 2.5.1, which packages 6.23.4.</p>
+<p>The application also only sends HSTS for an <code>https://</code> origin and logs a warning on every
+boot otherwise; <code>manifest.disableHsts=true</code> silences that warning where it is not wanted.</p>
 <p>Streaming responses need a generous read timeout on the ingress controller. The annotation
 differs per controller — for ingress-nginx it is
 <code>nginx.ingress.kubernetes.io/proxy-read-timeout</code>, for Traefik it is a <code>ServersTransport</code>.</p>
@@ -1188,7 +1207,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.5.1
+    targetRevision: 2.6.0
     helm:
       valuesObject:
         manifest:
@@ -1362,6 +1381,10 @@ in the left column.</p>
 <td><code>manifest.apiKey</code> <em>(secret)</em></td>
 </tr>
 <tr>
+<td><code>CLI_TOKEN_TTL_DAYS</code>, <code>CLI_TOKEN_ABSOLUTE_TTL_DAYS</code></td>
+<td><code>manifest.cliToken.ttlDays</code>, <code>.absoluteTtlDays</code></td>
+</tr>
+<tr>
 <td><code>MANIFEST_DISABLE_HSTS</code></td>
 <td><code>manifest.disableHsts</code></td>
 </tr>
@@ -1492,6 +1515,13 @@ re-released with different content.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.6.0"><code>2.6.0</code></a></td>
+<td><code>6.24.0</code></td>
+<td>2026-09-14</td>
+<td><a href="https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.6.0/manifest-llm-gateway-2.6.0.tgz"><code>.tgz</code></a></td>
+<td><code>631fad676b523335699…</code></td>
+</tr>
 <tr>
 <td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.5.1"><code>2.5.1</code></a></td>
 <td><code>6.23.4</code></td>
@@ -1629,7 +1659,7 @@ unattended only when the bump is not a major one and the diff is clean.</p>
 </tr>
 <tr>
 <td>Release notes</td>
-<td><a href="https://github.com/mnfst/manifest/releases/tag/manifest@6.23.4">manifest@6.23.4</a> — not every image tag has one</td>
+<td><a href="https://github.com/mnfst/llm-gateway/releases/tag/manifest@6.24.0">manifest@6.24.0</a> — not every image tag has one</td>
 </tr>
 <tr>
 <td>Watched files</td>
