@@ -216,6 +216,9 @@ Non-sensitive environment, as `key: "value"` lines for a ConfigMap.
 {{- include "manifest-llm-gateway.put" (list $d "OPENAI_OAUTH_CLIENT_ID" $m.providerOauth.openaiClientId) }}
 {{- include "manifest-llm-gateway.put" (list $d "MINIMAX_OAUTH_CLIENT_ID" $m.providerOauth.minimaxClientId) }}
 
+{{- include "manifest-llm-gateway.put" (list $d "CLI_TOKEN_TTL_DAYS" $m.cliToken.ttlDays) }}
+{{- include "manifest-llm-gateway.put" (list $d "CLI_TOKEN_ABSOLUTE_TTL_DAYS" $m.cliToken.absoluteTtlDays) }}
+
 {{- include "manifest-llm-gateway.put" (list $d "THROTTLE_TTL" $m.throttle.ttl) }}
 {{- include "manifest-llm-gateway.put" (list $d "THROTTLE_LIMIT" $m.throttle.limit) }}
 {{- include "manifest-llm-gateway.put" (list $d "SHUTDOWN_DRAIN_MS" $m.shutdownDrainMs) }}
