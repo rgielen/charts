@@ -52,7 +52,7 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 
 ## Source Code
 
-* <https://github.com/mnfst/manifest>
+* <https://github.com/mnfst/llm-gateway>
 * <https://github.com/rgielen/charts>
 
 ## Values
@@ -139,6 +139,8 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.auth.encryptionKey | string | `""` | Separate at-rest encryption key for stored provider API keys and OAuth tokens (`MANIFEST_ENCRYPTION_KEY`). Falls back to `auth.secret` when empty, which means one leaked session cookie secret also decrypts every stored provider credential. Set a second, independent 32+ character value. **Changing this without `previousEncryptionKey` makes existing stored credentials unreadable.** |
 | manifest.auth.previousEncryptionKey | string | `""` | The key that encrypted the stored credentials until now (`MANIFEST_ENCRYPTION_KEY_PREVIOUS`), set only while rotating `encryptionKey` — or while introducing one on an install that had been falling back to `auth.secret`, in which case this is that value. While it is set, a pass after boot rewrites every stored provider key, OAuth token, agent key and e-mail provider key onto the new key; remove it once the log reports nothing left under an older secret. Under 32 characters is ignored. Stored recording bodies are *not* rewritten and do not survive the change. |
 | manifest.auth.secret | string | `""` | Session signing secret (`BETTER_AUTH_SECRET`), at least 32 characters. Generate with `openssl rand -hex 32`. Required unless `existingSecret` provides it — the chart refuses to render without one. It is never generated for you: this chart is meant to be rendered by ArgoCD, where `lookup` returns nothing and a generated value would be different on every sync, taking every stored provider credential with it. |
+| manifest.cliToken.absoluteTtlDays | string | `""` | Hard ceiling in days from issuance (`CLI_TOKEN_ABSOLUTE_TTL_DAYS`). The sliding window above renews on every use, so this is what finally retires a token that is in constant use. Empty for the upstream default of 90; set below `ttlDays` it retires tokens before the sliding window ever matters. Both take a plain positive integer -- upstream ignores `0` and anything like `30d`, and silently applies its own default instead. |
+| manifest.cliToken.ttlDays | string | `""` | Sliding lifetime in days of a management token minted by the CLI (`CLI_TOKEN_TTL_DAYS`). Every successful authentication pushes the token's expiry this far out, so a CLI in regular use never has to log in again while an abandoned one lapses. Empty for the upstream default of 30. |
 | manifest.corsOrigins | list | `[]` | Extra browser origins allowed to call the gateway (`WINGMAN_CORS_ORIGINS`). Joined with commas. |
 | manifest.disableHsts | bool | `false` | Silence the boot warning about the missing HSTS header on a plain-http deployment (`MANIFEST_DISABLE_HSTS`). Prefer a real `https://` `publicUrl` anywhere reachable from the internet. |
 | manifest.existingSecret | string | `""` | Name of an existing Secret holding sensitive settings. Its keys are the upstream environment variable names (`BETTER_AUTH_SECRET`, `DATABASE_URL`, `EMAIL_API_KEY`, ...) and it is mounted with `envFrom`. Takes precedence over the plain values below, which makes it the right choice for GitOps: keep the Secret in sealed-secrets or external-secrets and leave the values here empty. |
@@ -527,6 +529,7 @@ in the left column.
 | `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_SECRET`, `DISCORD_CLIENT_SECRET` | `manifest.oauth.<provider>.clientSecret` *(secret)* |
 | `OPENAI_OAUTH_CLIENT_ID`, `MINIMAX_OAUTH_CLIENT_ID` | `manifest.providerOauth.openaiClientId`, `.minimaxClientId` |
 | `API_KEY` | `manifest.apiKey` *(secret)* |
+| `CLI_TOKEN_TTL_DAYS`, `CLI_TOKEN_ABSOLUTE_TTL_DAYS` | `manifest.cliToken.ttlDays`, `.absoluteTtlDays` |
 | `MANIFEST_DISABLE_HSTS` | `manifest.disableHsts` |
 | `WINGMAN_CORS_ORIGINS` | `manifest.corsOrigins` (a list; joined with commas) |
 | `THROTTLE_TTL`, `THROTTLE_LIMIT` | `manifest.throttle.ttl`, `.limit` |

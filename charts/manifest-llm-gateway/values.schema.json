@@ -103,6 +103,25 @@
             }
           }
         },
+        "cliToken": {
+          "type": "object",
+          "properties": {
+            "ttlDays": {
+              "description": "Empty for the upstream default of 30 days.",
+              "oneOf": [
+                { "type": "string", "pattern": "^$|^[0-9]+$" },
+                { "type": "integer", "minimum": 1 }
+              ]
+            },
+            "absoluteTtlDays": {
+              "description": "Empty for the upstream default of 90 days.",
+              "oneOf": [
+                { "type": "string", "pattern": "^$|^[0-9]+$" },
+                { "type": "integer", "minimum": 1 }
+              ]
+            }
+          }
+        },
         "database": {
           "type": "object",
           "properties": {

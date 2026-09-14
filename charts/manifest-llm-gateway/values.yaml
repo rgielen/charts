@@ -345,6 +345,22 @@ manifest:
   # @section -- Manifest: core
   apiKey: ""
 
+  cliToken:
+    # -- Sliding lifetime in days of a management token minted by the CLI
+    # (`CLI_TOKEN_TTL_DAYS`). Every successful authentication pushes the token's
+    # expiry this far out, so a CLI in regular use never has to log in again
+    # while an abandoned one lapses. Empty for the upstream default of 30.
+    # @section -- Manifest: core
+    ttlDays: ""
+    # -- Hard ceiling in days from issuance (`CLI_TOKEN_ABSOLUTE_TTL_DAYS`).
+    # The sliding window above renews on every use, so this is what finally
+    # retires a token that is in constant use. Empty for the upstream default
+    # of 90; set below `ttlDays` it retires tokens before the sliding window
+    # ever matters. Both take a plain positive integer -- upstream ignores `0`
+    # and anything like `30d`, and silently applies its own default instead.
+    # @section -- Manifest: core
+    absoluteTtlDays: ""
+
   database:
     # -- PostgreSQL connection string (`DATABASE_URL`), for example
     # `postgresql://manifest:secret@postgres.databases.svc:5432/manifest`.
