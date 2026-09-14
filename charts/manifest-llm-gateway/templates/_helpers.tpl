@@ -139,6 +139,10 @@ worse -- making every stored provider credential undecryptable.
 {{- if and (gt (int .Values.replicaCount) 1) .Values.manifest.runMigrationsOnBoot }}
 {{- fail "manifest-llm-gateway: replicaCount > 1 with manifest.runMigrationsOnBoot=true will hang the rollout, not just race. The boot path applies migrations without the advisory lock the upstream's migration entry point takes, and one of the pending migrations is a CREATE INDEX CONCURRENTLY -- which waits for the other replicas' sessions, while those wait for the lock. Nothing breaks the cycle. Use the migration Job (manifest.migrations.job.enabled=true, the default) and leave runMigrationsOnBoot=false." }}
 {{- end }}
+{{- $publicUrl := include "manifest-llm-gateway.publicUrl" . }}
+{{- if and $publicUrl (hasPrefix "http://" $publicUrl) (not (regexMatch "^http://(localhost|127\\.0\\.0\\.1|\\[::1\\])(:[0-9]+)?(/.*)?$" $publicUrl)) }}
+{{- fail (printf "manifest-llm-gateway: the public URL is %s -- plain http on a host that is not loopback. Since appVersion 6.24.0 the upstream wires Better Auth's MCP plugin unconditionally, and it rejects a non-HTTPS resource URL while the module loads: the process exits before it listens, so the pod never leaves CrashLoopBackOff and the log reads `MCP resource URL must use HTTPS`. Serve the dashboard over https and set manifest.publicUrl (or give the host a matching ingress.tls entry) accordingly, or stay on chart 2.5.1 with appVersion 6.23.4." $publicUrl) }}
+{{- end }}
 {{- if and (gt (int .Values.replicaCount) 1) .Values.persistence.enabled (not .Values.manifest.recordings.s3.bucket) (not (has "ReadWriteMany" .Values.persistence.accessModes)) }}
 {{- fail "manifest-llm-gateway: replicaCount > 1 with a ReadWriteOnce recordings volume. The replicas cannot share it, so all but the first stay Pending. Configure manifest.recordings.s3 instead, or set persistence.accessModes to include ReadWriteMany if your storage supports it." }}
 {{- end }}

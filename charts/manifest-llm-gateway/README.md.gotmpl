@@ -110,9 +110,17 @@ uses, or logins and OAuth callbacks fail in ways that look like unrelated bugs. 
 Ingress is enabled and `publicUrl` is empty, the chart derives it from the first Ingress
 host, using `https` if that host appears in `ingress.tls`.
 
-Serve it over HTTPS anywhere reachable from the internet: the application only sends HSTS
-for an `https://` origin and logs a warning on every boot otherwise. On an HTTP-only LAN
-install, set `manifest.disableHsts=true` to silence that warning.
+**It has to be `https://`**, unless it is a loopback address. Since appVersion 6.24.0 the
+upstream wires Better Auth's MCP plugin unconditionally and builds the plugin's resource
+URL out of `BETTER_AUTH_URL`; the plugin rejects a non-HTTPS resource URL while the module
+loads, so the process exits before it listens and the pod never leaves `CrashLoopBackOff`
+(`MCP resource URL must use HTTPS`). The chart refuses to render such a configuration
+rather than let you find out that way. An HTTP-only LAN install therefore needs either a
+TLS-terminating proxy in front — a self-signed certificate is enough, the check looks at
+the scheme — or chart 2.5.1, which packages 6.23.4.
+
+The application also only sends HSTS for an `https://` origin and logs a warning on every
+boot otherwise; `manifest.disableHsts=true` silences that warning where it is not wanted.
 
 Streaming responses need a generous read timeout on the ingress controller. The annotation
 differs per controller — for ingress-nginx it is

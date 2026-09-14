@@ -277,8 +277,10 @@ manifest:
   # -- Public URL the dashboard is reached at (`BETTER_AUTH_URL`). Must match
   # what the browser actually uses, or logins and OAuth callbacks break. No
   # trailing slash — the application appends paths such as `/api/auth/...` to
-  # this value. Serve it over https wherever it is reachable from the internet:
-  # the application only sends HSTS for an `https://` origin.
+  # this value. **Must be `https://`** unless it is a loopback address: since
+  # appVersion 6.24.0 the upstream builds its MCP resource URL from this value
+  # and refuses a non-HTTPS one while loading, so a plain-http host leaves the
+  # pod in CrashLoopBackOff. The chart refuses to render that instead.
   # @default -- derived from the first `ingress.hosts` entry when an Ingress is enabled
   # @section -- Manifest: core
   publicUrl: ""
