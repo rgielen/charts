@@ -25,13 +25,21 @@ Renovate then ran three times with that config live (07:49, 08:31, 13:57) and fo
 rebase of the branch each time without ever merging; the version reached the cluster because
 a human merged it at 14:17.
 
-Next theory to test, at the next bump: `rebaseWhen` from `config:recommended` resolves to
-"rebase whenever the branch is behind base" for an automerge-enabled pull request, and
-`main` there moves often. Renovate does not merge a branch in the same run in which it just
-rewrote it, so every run rebases and defers — a treadmill that never reaches the merge. If
-that is it, `rebaseWhen: "conflicted"` on the rule ends it: nothing gates these pull
-requests, so being behind `main` costs nothing. Check first whether a run ever sees the
-branch *not* behind.
+**Cause found, measured on #103 (2026-09-14):** Renovate refuses to automerge a branch whose
+status is not green, and GitHub's combined status API answers `pending` — not `success` —
+for a commit with **no checks at all**, which is every commit in a repository without CI:
+
+    GET /repos/rgielen/k3s-nuc/commits/<sha>/status
+    {"state": "pending", "total_count": 0, "statuses": []}
+
+The pull request waits on a condition that cannot occur, and nothing about it looks wrong.
+`ignoreTests: true` on the automerge rule is the fix (rgielen/k3s-nuc#105, open). The
+earlier rebase-treadmill theory is dead: #103 was zero commits behind `main` and a Renovate
+run still passed it by, creating another pull request in the same pass.
+
+This is the general trap, not a local quirk — **any** repository with no checks at all
+cannot satisfy Renovate's green-status requirement, so automerge there needs `ignoreTests`
+regardless of how the rule is written.
 
 **How to apply:** a non-major chart version published here now reaches a running
 single-node cluster without anyone reading the pull request. With `selfHeal` that is
