@@ -146,7 +146,7 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.existingSecret | string | `""` | Name of an existing Secret holding sensitive settings. Its keys are the upstream environment variable names (`BETTER_AUTH_SECRET`, `DATABASE_URL`, `EMAIL_API_KEY`, ...) and it is mounted with `envFrom`. Takes precedence over the plain values below, which makes it the right choice for GitOps: keep the Secret in sealed-secrets or external-secrets and leave the values here empty. |
 | manifest.mode | string | `"selfhosted"` | Deployment mode (`MANIFEST_MODE`). `selfhosted` relaxes the SSRF rules so private and plain-http provider URLs are allowed. Set explicitly rather than left to auto-detection, exactly as the upstream compose file does. `local` is the upstream's legacy alias for `selfhosted` and behaves identically; prefer `selfhosted` for anything new. |
 | manifest.port | int | `2099` | Port the application listens on (`PORT`). |
-| manifest.publicUrl | string | derived from the first `ingress.hosts` entry when an Ingress is enabled | Public URL the dashboard is reached at (`BETTER_AUTH_URL`). Must match what the browser actually uses, or logins and OAuth callbacks break. No trailing slash — the application appends paths such as `/api/auth/...` to this value. Serve it over https wherever it is reachable from the internet: the application only sends HSTS for an `https://` origin. |
+| manifest.publicUrl | string | derived from the first `ingress.hosts` entry when an Ingress is enabled | Public URL the dashboard is reached at (`BETTER_AUTH_URL`). Must match what the browser actually uses, or logins and OAuth callbacks break. No trailing slash — the application appends paths such as `/api/auth/...` to this value. **Must be `https://`** unless it is a loopback address: since appVersion 6.24.0 the upstream builds its MCP resource URL from this value and refuses a non-HTTPS one while loading, so a plain-http host leaves the pod in CrashLoopBackOff. The chart refuses to render that instead. |
 
 ### Manifest: LLM proxy
 
@@ -327,9 +327,17 @@ uses, or logins and OAuth callbacks fail in ways that look like unrelated bugs. 
 Ingress is enabled and `publicUrl` is empty, the chart derives it from the first Ingress
 host, using `https` if that host appears in `ingress.tls`.
 
-Serve it over HTTPS anywhere reachable from the internet: the application only sends HSTS
-for an `https://` origin and logs a warning on every boot otherwise. On an HTTP-only LAN
-install, set `manifest.disableHsts=true` to silence that warning.
+**It has to be `https://`**, unless it is a loopback address. Since appVersion 6.24.0 the
+upstream wires Better Auth's MCP plugin unconditionally and builds the plugin's resource
+URL out of `BETTER_AUTH_URL`; the plugin rejects a non-HTTPS resource URL while the module
+loads, so the process exits before it listens and the pod never leaves `CrashLoopBackOff`
+(`MCP resource URL must use HTTPS`). The chart refuses to render such a configuration
+rather than let you find out that way. An HTTP-only LAN install therefore needs either a
+TLS-terminating proxy in front — a self-signed certificate is enough, the check looks at
+the scheme — or chart 2.5.1, which packages 6.23.4.
+
+The application also only sends HSTS for an `https://` origin and logs a warning on every
+boot otherwise; `manifest.disableHsts=true` silences that warning where it is not wanted.
 
 Streaming responses need a generous read timeout on the ingress controller. The annotation
 differs per controller — for ingress-nginx it is

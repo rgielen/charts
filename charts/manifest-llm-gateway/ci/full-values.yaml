@@ -13,7 +13,12 @@ manifest:
     # renders, mounts and runs without leaving the install unhealthy.
     previousEncryptionKey: ci-only-previous-encryption-key-0123456789
   disableHsts: true
-  publicUrl: http://manifest.ci.example.com
+  # https, and not for show: since appVersion 6.24.0 the upstream refuses a
+  # non-HTTPS MCP resource URL at boot, and this URL is what it is built from.
+  # Nothing terminates TLS in the kind cluster -- the value only has to be
+  # well-formed, and the chart's own guard rejects the http:// form before the
+  # pod would.
+  publicUrl: https://manifest.ci.example.com
   proxy:
     providerTimeoutMs: 60000
     streamWarmupMs: 5000
