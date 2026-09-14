@@ -15,7 +15,7 @@ kind, the coupled appVersion/version bump, and the drift check holding a bump wh
 the upstream configuration surface moved. The remaining reason to merge by hand was
 an unreadable release body, which `release_notes.py` fixed.
 
-**OPEN: it has never actually merged one.** The rule matches — Renovate writes "Automerge:
+**Confirmed working since 2026-09-14 11:59Z**, after two wrong theories. The rule matches — Renovate writes "Automerge:
 Enabled" on our chart's pull requests and "Disabled by config" on every other — but no bump
 has been merged unattended yet. `platformAutomerge: false` (rgielen/k3s-nuc#97, live since
 2026-09-12 07:49Z) was the first theory: GitHub's auto-merge is unusable there, since the
@@ -33,9 +33,10 @@ for a commit with **no checks at all**, which is every commit in a repository wi
     {"state": "pending", "total_count": 0, "statuses": []}
 
 The pull request waits on a condition that cannot occur, and nothing about it looks wrong.
-`ignoreTests: true` on the automerge rule is the fix (rgielen/k3s-nuc#105, open). The
-earlier rebase-treadmill theory is dead: #103 was zero commits behind `main` and a Renovate
-run still passed it by, creating another pull request in the same pass.
+`ignoreTests: true` on the automerge rule is the fix (rgielen/k3s-nuc#105). Proven 55
+seconds after that merge: Renovate force-pushed a rebase of #103 onto the new `main` and
+merged it **in the same run**, unattended. That also retires the rebase-treadmill theory
+twice over — it never deferred a merge to a later run at all.
 
 This is the general trap, not a local quirk — **any** repository with no checks at all
 cannot satisfy Renovate's green-status requirement, so automerge there needs `ignoreTests`
