@@ -8,6 +8,38 @@ entries:
       charts.rgielen.de/upstream-tag-pattern: ^[0-9]+\.[0-9]+\.[0-9]+$
       charts.rgielen.de/upstream-watch-paths: docker/.env.example,docker/docker-compose.yml,packages/backend/.env.example,packages/backend/src/config/app.config.ts
     apiVersion: v2
+    appVersion: 6.25.1
+    created: "2026-09-16T08:15:53.925445938Z"
+    description: Manifest, the self-hosted LLM gateway, proxy and dashboard.
+    digest: 6f29e168241244941feb08c5585b8276eadfabdd531c413625df8d1640c742f4
+    home: https://manifest.build
+    icon: https://manifest.build/images/favicon.png
+    keywords:
+    - llm
+    - gateway
+    - proxy
+    - openai
+    - anthropic
+    - ollama
+    - ai
+    maintainers:
+    - name: rgielen
+      url: https://github.com/rgielen
+    name: manifest-llm-gateway
+    sources:
+    - https://github.com/mnfst/llm-gateway
+    - https://github.com/rgielen/charts
+    type: application
+    urls:
+    - https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.7.0/manifest-llm-gateway-2.7.0.tgz
+    version: 2.7.0
+  - annotations:
+      charts.rgielen.de/upstream-config-sources: packages/backend/src/config/app.config.ts,packages/backend/.env.example,docker/.env.example
+      charts.rgielen.de/upstream-image: docker.io/manifestdotbuild/manifest
+      charts.rgielen.de/upstream-releases: https://github.com/mnfst/llm-gateway/releases/tag/manifest@{version}
+      charts.rgielen.de/upstream-tag-pattern: ^[0-9]+\.[0-9]+\.[0-9]+$
+      charts.rgielen.de/upstream-watch-paths: docker/.env.example,docker/docker-compose.yml,packages/backend/.env.example,packages/backend/src/config/app.config.ts
+    apiVersion: v2
     appVersion: 6.24.0
     created: "2026-09-14T07:31:26.687814771Z"
     description: Manifest, the self-hosted LLM gateway, proxy and dashboard.
@@ -533,4 +565,4 @@ entries:
     urls:
     - https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-0.1.0/manifest-llm-gateway-0.1.0.tgz
     version: 0.1.0
-generated: "2026-09-14T07:31:26.687935346Z"
+generated: "2026-09-16T08:15:53.925537078Z"
