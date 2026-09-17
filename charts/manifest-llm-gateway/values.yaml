@@ -310,7 +310,8 @@ manifest:
   # `publicUrl` — but only for hosts listed here; any other host is sent through
   # `publicUrl` and leaves its cookie on an origin the browser will not send
   # back. Entries are hostnames with an optional port, or full origins (the
-  # scheme is ignored), and `*.example.com` wildcards are accepted. Leave empty
+  # scheme is ignored), and `*.example.com` wildcards are accepted; an IPv6
+  # literal has to be bracketed, `[::1]`, as the upstream's URL parser wants it. Leave empty
   # for the usual single-host install: with one host known the upstream keeps
   # the static origin, which is what it did before 6.25.2. The remote MCP
   # endpoint stays bound to `publicUrl` either way.

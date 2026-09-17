@@ -44,18 +44,30 @@ front of it, or set manifest.disableHsts=true on an HTTP-only LAN install.
 {{- end }}
 
 {{- $servedHosts := 0 }}
+{{- $everyHost := false }}
 {{- if .Values.ingress.enabled }}
 {{- $servedHosts = len .Values.ingress.hosts }}
 {{- else if .Values.httpRoute.enabled }}
 {{- $servedHosts = len .Values.httpRoute.hostnames }}
+{{- $everyHost = eq $servedHosts 0 }}
 {{- end }}
-{{- if and (gt $servedHosts 1) (empty .Values.manifest.authAllowedHosts) }}
+{{- if and $publicUrl (empty .Values.manifest.authAllowedHosts) }}
+{{- if $everyHost }}
+
+NOTE: the HTTPRoute sets no hostnames, so it answers on every hostname its
+Gateway serves, and manifest.authAllowedHosts is empty. BETTER_AUTH_URL is a
+single origin: a login that starts on any host other than {{ $publicUrl }} is
+sent through a callback there and leaves its session cookie on that origin. List
+the hosts this release is actually reached at in manifest.authAllowedHosts, or
+set httpRoute.hostnames if it is only meant to answer on one.
+{{- else if gt $servedHosts 1 }}
 
 NOTE: {{ $servedHosts }} hosts serve this release, but manifest.authAllowedHosts
 is empty. BETTER_AUTH_URL is a single origin, so a login that starts on any host
 other than {{ $publicUrl }} is sent through a callback there and leaves its
 session cookie on that origin. List the other hosts in
 manifest.authAllowedHosts.
+{{- end }}
 {{- end }}
 
 {{- if gt (int .Values.replicaCount) 1 }}
