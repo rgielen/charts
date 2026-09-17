@@ -22,11 +22,11 @@
 <p class="crumbs"><a href="../">Charts</a> <span>/</span> manifest-llm-gateway</p>
 <h1>manifest-llm-gateway</h1>
 <p class="lede">Manifest, the self-hosted LLM gateway, proxy and dashboard.</p>
-<p class="badges"><span class="badge"><span>Chart</span><b>2.7.1</b></span><span class="badge"><span>App</span><b>6.25.2</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
+<p class="badges"><span class="badge"><span>Chart</span><b>2.8.0</b></span><span class="badge"><span>App</span><b>6.25.2</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
 <p class="page-links"><a href="https://manifest.build">manifest.build</a></p>
 
 <div class="layout">
-<nav class="toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li><a href="#installation">Installation</a></li><li><a href="#source-code">Source Code</a></li><li><a href="#values">Values</a><ul><li><a href="#workload">Workload</a></li><li><a href="#extensibility">Extensibility</a></li><li><a href="#networking">Networking</a></li><li><a href="#image">Image</a></li><li><a href="#manifest-core">Manifest: core</a></li><li><a href="#manifest-llm-proxy">Manifest: LLM proxy</a></li><li><a href="#manifest-database">Manifest: database</a></li><li><a href="#manifest-email-and-oauth">Manifest: email and OAuth</a></li><li><a href="#manifest-operations">Manifest: operations</a></li><li><a href="#manifest-request-recordings">Manifest: request recordings</a></li><li><a href="#manifest-observability">Manifest: observability</a></li><li><a href="#persistence">Persistence</a></li></ul></li><li><a href="#quick-start">Quick start</a></li><li><a href="#secrets">Secrets</a><ul><li><a href="#rotating-the-encryption-key">Rotating the encryption key</a></li></ul></li><li><a href="#reverse-proxy-and-publicurl">Reverse proxy and publicUrl</a></li><li><a href="#database">Database</a></li><li><a href="#request-recordings">Request recordings</a></li><li><a href="#database-migrations">Database migrations</a></li><li><a href="#high-availability">High availability</a></li><li><a href="#upgrading">Upgrading</a></li><li><a href="#use-from-argocd">Use from ArgoCD</a></li><li><a href="#environment-variable-mapping">Environment variable mapping</a><ul><li><a href="#deliberately-not-modelled">Deliberately not modelled</a></li></ul></li><li><a href="#maintainers">Maintainers</a></li><li><a href="#published-versions">Published versions</a></li><li><a href="#upstream-tracking">Upstream tracking</a></li></ul></nav>
+<nav class="toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li><a href="#installation">Installation</a></li><li><a href="#source-code">Source Code</a></li><li><a href="#values">Values</a><ul><li><a href="#workload">Workload</a></li><li><a href="#extensibility">Extensibility</a></li><li><a href="#networking">Networking</a></li><li><a href="#image">Image</a></li><li><a href="#manifest-core">Manifest: core</a></li><li><a href="#manifest-llm-proxy">Manifest: LLM proxy</a></li><li><a href="#manifest-database">Manifest: database</a></li><li><a href="#manifest-email-and-oauth">Manifest: email and OAuth</a></li><li><a href="#manifest-operations">Manifest: operations</a></li><li><a href="#manifest-request-recordings">Manifest: request recordings</a></li><li><a href="#manifest-observability">Manifest: observability</a></li><li><a href="#persistence">Persistence</a></li></ul></li><li><a href="#quick-start">Quick start</a></li><li><a href="#secrets">Secrets</a><ul><li><a href="#rotating-the-encryption-key">Rotating the encryption key</a></li></ul></li><li><a href="#reverse-proxy-and-publicurl">Reverse proxy and publicUrl</a><ul><li><a href="#more-than-one-host">More than one host</a></li></ul></li><li><a href="#database">Database</a></li><li><a href="#request-recordings">Request recordings</a></li><li><a href="#database-migrations">Database migrations</a></li><li><a href="#high-availability">High availability</a></li><li><a href="#upgrading">Upgrading</a></li><li><a href="#use-from-argocd">Use from ArgoCD</a></li><li><a href="#environment-variable-mapping">Environment variable mapping</a><ul><li><a href="#deliberately-not-modelled">Deliberately not modelled</a></li></ul></li><li><a href="#maintainers">Maintainers</a></li><li><a href="#published-versions">Published versions</a></li><li><a href="#upstream-tracking">Upstream tracking</a></li></ul></nav>
 <article class="prose">
 <p><a href="https://manifest.build">Manifest</a> is a self-hosted gateway in front of the LLM providers
 you already pay for. It gives you one OpenAI-compatible endpoint, a dashboard for keys,
@@ -57,10 +57,10 @@ Kubernetes.</p>
 <p>From the Helm repository:</p>
 <pre><code class="language-bash">helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.7.1
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.8.0
 </code></pre>
 <p>Or directly from the OCI registry:</p>
-<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.7.1
+<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.8.0
 </code></pre>
 <h2 id="source-code">Source Code<a class="anchor" href="#source-code" title="Permanent link">#</a></h2>
 <ul>
@@ -478,6 +478,12 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.7.
 <td>string</td>
 <td><code>""</code></td>
 <td>Session signing secret (<code>BETTER_AUTH_SECRET</code>), at least 32 characters. Generate with <code>openssl rand -hex 32</code>. Required unless <code>existingSecret</code> provides it — the chart refuses to render without one. It is never generated for you: this chart is meant to be rendered by ArgoCD, where <code>lookup</code> returns nothing and a generated value would be different on every sync, taking every stored provider credential with it.</td>
+</tr>
+<tr>
+<td>manifest.authAllowedHosts</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Further hosts this release answers on, besides the one in <code>publicUrl</code> (<code>BETTER_AUTH_ALLOWED_HOSTS</code>). Joined with commas. Since appVersion 6.25.2 the OAuth callback and the session cookie follow the request host instead of <code>publicUrl</code> — but only for hosts listed here; any other host is sent through <code>publicUrl</code> and leaves its cookie on an origin the browser will not send back. Entries are hostnames with an optional port, or full origins (the scheme is ignored), and <code>*.example.com</code> wildcards are accepted. Leave empty for the usual single-host install: with one host known the upstream keeps the static origin, which is what it did before 6.25.2. The remote MCP endpoint stays bound to <code>publicUrl</code> either way.</td>
 </tr>
 <tr>
 <td>manifest.cliToken.absoluteTtlDays</td>
@@ -1079,6 +1085,38 @@ boot otherwise; <code>manifest.disableHsts=true</code> silences that warning whe
 <p>Streaming responses need a generous read timeout on the ingress controller. The annotation
 differs per controller — for ingress-nginx it is
 <code>nginx.ingress.kubernetes.io/proxy-read-timeout</code>, for Traefik it is a <code>ServersTransport</code>.</p>
+<h3 id="more-than-one-host">More than one host<a class="anchor" href="#more-than-one-host" title="Permanent link">#</a></h3>
+<p><code>ingress.hosts</code> takes a list, but <code>publicUrl</code> is one origin, and Better Auth pins both the
+OAuth callback and the session cookie to it. A login that starts on the second host is
+therefore redirected to a callback on <code>publicUrl</code> and leaves its cookie on an origin the
+second host's dashboard never sends back — the login simply does not stick, with nothing
+in the logs to say why.</p>
+<p>Since appVersion 6.25.2 the upstream resolves the base URL from the request host instead,
+restricted to an allow-list, and <code>manifest.authAllowedHosts</code> fills it
+(<code>BETTER_AUTH_ALLOWED_HOSTS</code>). Entries are hostnames with an optional port, or full origins
+— the scheme is ignored, only the host is kept — and <code>*.example.com</code> wildcards are
+accepted. Better Auth derives its trusted origins from the same list, so the CSRF check
+follows along and nothing else needs configuring:</p>
+<pre><code class="language-yaml">ingress:
+  enabled: true
+  hosts:
+    - host: manifest.example.com
+      paths: [{ path: /, pathType: Prefix }]
+    - host: gateway.example.com
+      paths: [{ path: /, pathType: Prefix }]
+manifest:
+  publicUrl: https://manifest.example.com
+  authAllowedHosts:
+    - gateway.example.com
+</code></pre>
+<p>Leave it empty for the usual single-host install. With only one host known the upstream
+keeps the static origin, which is exactly what it did before 6.25.2 — the chart does not
+derive the list from <code>ingress.hosts</code> for you, because trusting a host is a decision, not a
+side effect of serving it.</p>
+<p>Two things the list does not move. The remote MCP endpoint stays bound to <code>publicUrl</code>: a
+self-hosted release advertises one resource URL, and MCP clients keep using that one. And
+an entry the upstream cannot parse is dropped without a word — <code>values.schema.json</code> rejects
+the obvious typos at install time instead.</p>
 <h2 id="database">Database<a class="anchor" href="#database" title="Permanent link">#</a></h2>
 <p><code>manifest.database.url</code> is a standard PostgreSQL connection string. Percent-encode special
 characters in the password (<code>@</code> → <code>%40</code>, <code>:</code> → <code>%3A</code>, <code>/</code> → <code>%2F</code>). Migrations are applied
@@ -1207,7 +1245,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.7.1
+    targetRevision: 2.8.0
     helm:
       valuesObject:
         manifest:
@@ -1259,6 +1297,10 @@ in the left column.</p>
 <tr>
 <td><code>BETTER_AUTH_URL</code></td>
 <td><code>manifest.publicUrl</code></td>
+</tr>
+<tr>
+<td><code>BETTER_AUTH_ALLOWED_HOSTS</code></td>
+<td><code>manifest.authAllowedHosts</code> (a list; joined with commas)</td>
 </tr>
 <tr>
 <td><code>MANIFEST_VERSION</code></td>
@@ -1515,6 +1557,13 @@ re-released with different content.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.8.0"><code>2.8.0</code></a></td>
+<td><code>6.25.2</code></td>
+<td>2026-09-17</td>
+<td><a href="https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.8.0/manifest-llm-gateway-2.8.0.tgz"><code>.tgz</code></a></td>
+<td><code>435d5a4c5a253079af4…</code></td>
+</tr>
 <tr>
 <td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.7.1"><code>2.7.1</code></a></td>
 <td><code>6.25.2</code></td>
