@@ -43,6 +43,21 @@ application cannot send HSTS and logs a warning on every boot. Terminate TLS in
 front of it, or set manifest.disableHsts=true on an HTTP-only LAN install.
 {{- end }}
 
+{{- $servedHosts := 0 }}
+{{- if .Values.ingress.enabled }}
+{{- $servedHosts = len .Values.ingress.hosts }}
+{{- else if .Values.httpRoute.enabled }}
+{{- $servedHosts = len .Values.httpRoute.hostnames }}
+{{- end }}
+{{- if and (gt $servedHosts 1) (empty .Values.manifest.authAllowedHosts) }}
+
+NOTE: {{ $servedHosts }} hosts serve this release, but manifest.authAllowedHosts
+is empty. BETTER_AUTH_URL is a single origin, so a login that starts on any host
+other than {{ $publicUrl }} is sent through a callback there and leaves its
+session cookie on that origin. List the other hosts in
+manifest.authAllowedHosts.
+{{- end }}
+
 {{- if gt (int .Values.replicaCount) 1 }}
 
 Running {{ .Values.replicaCount }} replicas. Three things the chart cannot fix

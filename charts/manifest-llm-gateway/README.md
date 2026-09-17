@@ -1,6 +1,6 @@
 # manifest-llm-gateway
 
-![Version: 2.7.1](https://img.shields.io/badge/Version-2.7.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.25.2](https://img.shields.io/badge/AppVersion-6.25.2-informational?style=flat-square)
+![Version: 2.8.0](https://img.shields.io/badge/Version-2.8.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.25.2](https://img.shields.io/badge/AppVersion-6.25.2-informational?style=flat-square)
 
 Manifest, the self-hosted LLM gateway, proxy and dashboard.
 
@@ -41,13 +41,13 @@ From the Helm repository:
 ```bash
 helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.7.1
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.8.0
 ```
 
 Or directly from the OCI registry:
 
 ```bash
-helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.7.1
+helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.8.0
 ```
 
 ## Source Code
@@ -139,6 +139,7 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.auth.encryptionKey | string | `""` | Separate at-rest encryption key for stored provider API keys and OAuth tokens (`MANIFEST_ENCRYPTION_KEY`). Falls back to `auth.secret` when empty, which means one leaked session cookie secret also decrypts every stored provider credential. Set a second, independent 32+ character value. **Changing this without `previousEncryptionKey` makes existing stored credentials unreadable.** |
 | manifest.auth.previousEncryptionKey | string | `""` | The key that encrypted the stored credentials until now (`MANIFEST_ENCRYPTION_KEY_PREVIOUS`), set only while rotating `encryptionKey` — or while introducing one on an install that had been falling back to `auth.secret`, in which case this is that value. While it is set, a pass after boot rewrites every stored provider key, OAuth token, agent key and e-mail provider key onto the new key; remove it once the log reports nothing left under an older secret. Under 32 characters is ignored. Stored recording bodies are *not* rewritten and do not survive the change. |
 | manifest.auth.secret | string | `""` | Session signing secret (`BETTER_AUTH_SECRET`), at least 32 characters. Generate with `openssl rand -hex 32`. Required unless `existingSecret` provides it — the chart refuses to render without one. It is never generated for you: this chart is meant to be rendered by ArgoCD, where `lookup` returns nothing and a generated value would be different on every sync, taking every stored provider credential with it. |
+| manifest.authAllowedHosts | list | `[]` | Further hosts this release answers on, besides the one in `publicUrl` (`BETTER_AUTH_ALLOWED_HOSTS`). Joined with commas. Since appVersion 6.25.2 the OAuth callback and the session cookie follow the request host instead of `publicUrl` — but only for hosts listed here; any other host is sent through `publicUrl` and leaves its cookie on an origin the browser will not send back. Entries are hostnames with an optional port, or full origins (the scheme is ignored), and `*.example.com` wildcards are accepted. Leave empty for the usual single-host install: with one host known the upstream keeps the static origin, which is what it did before 6.25.2. The remote MCP endpoint stays bound to `publicUrl` either way. |
 | manifest.cliToken.absoluteTtlDays | string | `""` | Hard ceiling in days from issuance (`CLI_TOKEN_ABSOLUTE_TTL_DAYS`). The sliding window above renews on every use, so this is what finally retires a token that is in constant use. Empty for the upstream default of 90; set below `ttlDays` it retires tokens before the sliding window ever matters. Both take a plain positive integer -- upstream ignores `0` and anything like `30d`, and silently applies its own default instead. |
 | manifest.cliToken.ttlDays | string | `""` | Sliding lifetime in days of a management token minted by the CLI (`CLI_TOKEN_TTL_DAYS`). Every successful authentication pushes the token's expiry this far out, so a CLI in regular use never has to log in again while an abandoned one lapses. Empty for the upstream default of 30. |
 | manifest.corsOrigins | list | `[]` | Extra browser origins allowed to call the gateway (`WINGMAN_CORS_ORIGINS`). Joined with commas. |
@@ -343,6 +344,45 @@ Streaming responses need a generous read timeout on the ingress controller. The 
 differs per controller — for ingress-nginx it is
 `nginx.ingress.kubernetes.io/proxy-read-timeout`, for Traefik it is a `ServersTransport`.
 
+### More than one host
+
+`ingress.hosts` takes a list, but `publicUrl` is one origin, and Better Auth pins both the
+OAuth callback and the session cookie to it. A login that starts on the second host is
+therefore redirected to a callback on `publicUrl` and leaves its cookie on an origin the
+second host's dashboard never sends back — the login simply does not stick, with nothing
+in the logs to say why.
+
+Since appVersion 6.25.2 the upstream resolves the base URL from the request host instead,
+restricted to an allow-list, and `manifest.authAllowedHosts` fills it
+(`BETTER_AUTH_ALLOWED_HOSTS`). Entries are hostnames with an optional port, or full origins
+— the scheme is ignored, only the host is kept — and `*.example.com` wildcards are
+accepted. Better Auth derives its trusted origins from the same list, so the CSRF check
+follows along and nothing else needs configuring:
+
+```yaml
+ingress:
+  enabled: true
+  hosts:
+    - host: manifest.example.com
+      paths: [{ path: /, pathType: Prefix }]
+    - host: gateway.example.com
+      paths: [{ path: /, pathType: Prefix }]
+manifest:
+  publicUrl: https://manifest.example.com
+  authAllowedHosts:
+    - gateway.example.com
+```
+
+Leave it empty for the usual single-host install. With only one host known the upstream
+keeps the static origin, which is exactly what it did before 6.25.2 — the chart does not
+derive the list from `ingress.hosts` for you, because trusting a host is a decision, not a
+side effect of serving it.
+
+Two things the list does not move. The remote MCP endpoint stays bound to `publicUrl`: a
+self-hosted release advertises one resource URL, and MCP clients keep using that one. And
+an entry the upstream cannot parse is dropped without a word — `values.schema.json` rejects
+the obvious typos at install time instead.
+
 ## Database
 
 `manifest.database.url` is a standard PostgreSQL connection string. Percent-encode special
@@ -475,7 +515,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.7.1
+    targetRevision: 2.8.0
     helm:
       valuesObject:
         manifest:
@@ -507,6 +547,7 @@ in the left column.
 | `PORT` | `manifest.port` |
 | `HOST_BIND_ADDRESS`, `HOST_PORT` | not applicable — use `service` and `ingress` |
 | `BETTER_AUTH_URL` | `manifest.publicUrl` |
+| `BETTER_AUTH_ALLOWED_HOSTS` | `manifest.authAllowedHosts` (a list; joined with commas) |
 | `MANIFEST_VERSION` | `image.tag`, defaulting to the chart's `appVersion` |
 | `MANIFEST_MODE` | `manifest.mode` |
 | `DATABASE_URL` | `manifest.database.url` *(secret)* |

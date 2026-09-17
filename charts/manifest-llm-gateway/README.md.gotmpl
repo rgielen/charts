@@ -126,6 +126,45 @@ Streaming responses need a generous read timeout on the ingress controller. The 
 differs per controller — for ingress-nginx it is
 `nginx.ingress.kubernetes.io/proxy-read-timeout`, for Traefik it is a `ServersTransport`.
 
+### More than one host
+
+`ingress.hosts` takes a list, but `publicUrl` is one origin, and Better Auth pins both the
+OAuth callback and the session cookie to it. A login that starts on the second host is
+therefore redirected to a callback on `publicUrl` and leaves its cookie on an origin the
+second host's dashboard never sends back — the login simply does not stick, with nothing
+in the logs to say why.
+
+Since appVersion 6.25.2 the upstream resolves the base URL from the request host instead,
+restricted to an allow-list, and `manifest.authAllowedHosts` fills it
+(`BETTER_AUTH_ALLOWED_HOSTS`). Entries are hostnames with an optional port, or full origins
+— the scheme is ignored, only the host is kept — and `*.example.com` wildcards are
+accepted. Better Auth derives its trusted origins from the same list, so the CSRF check
+follows along and nothing else needs configuring:
+
+```yaml
+ingress:
+  enabled: true
+  hosts:
+    - host: manifest.example.com
+      paths: [{ path: /, pathType: Prefix }]
+    - host: gateway.example.com
+      paths: [{ path: /, pathType: Prefix }]
+manifest:
+  publicUrl: https://manifest.example.com
+  authAllowedHosts:
+    - gateway.example.com
+```
+
+Leave it empty for the usual single-host install. With only one host known the upstream
+keeps the static origin, which is exactly what it did before 6.25.2 — the chart does not
+derive the list from `ingress.hosts` for you, because trusting a host is a decision, not a
+side effect of serving it.
+
+Two things the list does not move. The remote MCP endpoint stays bound to `publicUrl`: a
+self-hosted release advertises one resource URL, and MCP clients keep using that one. And
+an entry the upstream cannot parse is dropped without a word — `values.schema.json` rejects
+the obvious typos at install time instead.
+
 ## Database
 
 `manifest.database.url` is a standard PostgreSQL connection string. Percent-encode special
@@ -290,6 +329,7 @@ in the left column.
 | `PORT` | `manifest.port` |
 | `HOST_BIND_ADDRESS`, `HOST_PORT` | not applicable — use `service` and `ingress` |
 | `BETTER_AUTH_URL` | `manifest.publicUrl` |
+| `BETTER_AUTH_ALLOWED_HOSTS` | `manifest.authAllowedHosts` (a list; joined with commas) |
 | `MANIFEST_VERSION` | `image.tag`, defaulting to the chart's `appVersion` |
 | `MANIFEST_MODE` | `manifest.mode` |
 | `DATABASE_URL` | `manifest.database.url` *(secret)* |

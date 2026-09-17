@@ -19,6 +19,12 @@ manifest:
   # well-formed, and the chart's own guard rejects the http:// form before the
   # pod would.
   publicUrl: https://manifest.ci.example.com
+  # The second Ingress host below, so the two-host auth path renders and the
+  # pod boots with it. A wildcard entry rides along to prove the schema pattern
+  # accepts one.
+  authAllowedHosts:
+    - gateway.ci.example.com
+    - "*.preview.ci.example.com"
   proxy:
     providerTimeoutMs: 60000
     streamWarmupMs: 5000
@@ -35,6 +41,12 @@ ingress:
   enabled: true
   hosts:
     - host: manifest.ci.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+    # A second host on the same release -- what manifest.authAllowedHosts above
+    # exists for. publicUrl stays the first one.
+    - host: gateway.ci.example.com
       paths:
         - path: /
           pathType: Prefix
