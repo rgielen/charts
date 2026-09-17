@@ -22,7 +22,7 @@
 <p class="crumbs"><a href="../">Charts</a> <span>/</span> manifest-llm-gateway</p>
 <h1>manifest-llm-gateway</h1>
 <p class="lede">Manifest, the self-hosted LLM gateway, proxy and dashboard.</p>
-<p class="badges"><span class="badge"><span>Chart</span><b>2.8.0</b></span><span class="badge"><span>App</span><b>6.25.2</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
+<p class="badges"><span class="badge"><span>Chart</span><b>2.8.1</b></span><span class="badge"><span>App</span><b>6.25.2</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
 <p class="page-links"><a href="https://manifest.build">manifest.build</a></p>
 
 <div class="layout">
@@ -57,10 +57,10 @@ Kubernetes.</p>
 <p>From the Helm repository:</p>
 <pre><code class="language-bash">helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.8.0
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.8.1
 </code></pre>
 <p>Or directly from the OCI registry:</p>
-<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.8.0
+<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.8.1
 </code></pre>
 <h2 id="source-code">Source Code<a class="anchor" href="#source-code" title="Permanent link">#</a></h2>
 <ul>
@@ -483,7 +483,7 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.8.
 <td>manifest.authAllowedHosts</td>
 <td>list</td>
 <td><code>[]</code></td>
-<td>Further hosts this release answers on, besides the one in <code>publicUrl</code> (<code>BETTER_AUTH_ALLOWED_HOSTS</code>). Joined with commas. Since appVersion 6.25.2 the OAuth callback and the session cookie follow the request host instead of <code>publicUrl</code> — but only for hosts listed here; any other host is sent through <code>publicUrl</code> and leaves its cookie on an origin the browser will not send back. Entries are hostnames with an optional port, or full origins (the scheme is ignored), and <code>*.example.com</code> wildcards are accepted. Leave empty for the usual single-host install: with one host known the upstream keeps the static origin, which is what it did before 6.25.2. The remote MCP endpoint stays bound to <code>publicUrl</code> either way.</td>
+<td>Further hosts this release answers on, besides the one in <code>publicUrl</code> (<code>BETTER_AUTH_ALLOWED_HOSTS</code>). Joined with commas. Since appVersion 6.25.2 the OAuth callback and the session cookie follow the request host instead of <code>publicUrl</code> — but only for hosts listed here; any other host is sent through <code>publicUrl</code> and leaves its cookie on an origin the browser will not send back. Entries are hostnames with an optional port, or full origins (the scheme is ignored), and <code>*.example.com</code> wildcards are accepted; an IPv6 literal has to be bracketed, <code>[::1]</code>, as the upstream's URL parser wants it. Leave empty for the usual single-host install: with one host known the upstream keeps the static origin, which is what it did before 6.25.2. The remote MCP endpoint stays bound to <code>publicUrl</code> either way.</td>
 </tr>
 <tr>
 <td>manifest.cliToken.absoluteTtlDays</td>
@@ -1245,7 +1245,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.8.0
+    targetRevision: 2.8.1
     helm:
       valuesObject:
         manifest:
@@ -1557,6 +1557,13 @@ re-released with different content.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.8.1"><code>2.8.1</code></a></td>
+<td><code>6.25.2</code></td>
+<td>2026-09-17</td>
+<td><a href="https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.8.1/manifest-llm-gateway-2.8.1.tgz"><code>.tgz</code></a></td>
+<td><code>d6f31cabf4cbd561ce7…</code></td>
+</tr>
 <tr>
 <td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.8.0"><code>2.8.0</code></a></td>
 <td><code>6.25.2</code></td>
