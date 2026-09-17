@@ -16,8 +16,38 @@ on:
   # index has to carry the release before the site is rendered from it, and only
   # the release run knows when that is true. A `workflow_run` trigger would run
   # eventually; this runs after.
+  #
+  # Also called by upstream-sync.yaml, which has neither of those two things: its
+  # pull request is opened with GITHUB_TOKEN and therefore triggers no
+  # `pull_request` render, and its branch is not merged, so the render must not
+  # reach gh-pages. Hence the two inputs below, defaulting to what release.yaml
+  # already expects -- the normal checkout, and a published site.
   workflow_call:
+    inputs:
+      ref:
+        description: Git ref to check out. Empty means the default checkout.
+        type: string
+        required: false
+        default: ""
+      render_only:
+        description: Render and check, but do not push to gh-pages.
+        type: boolean
+        required: false
+        default: false
+  # The same two knobs by hand, which is how the called path above is exercised
+  # without waiting for an upstream release to produce a sync pull request.
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to check out. Empty means the default checkout.
+        type: string
+        required: false
+        default: ""
+      render_only:
+        description: Render and check, but do not push to gh-pages.
+        type: boolean
+        required: false
+        default: false
   # Chart changes reach the site through release.yaml -- every one of them needs
   # a chart version bump, so every one of them is a release. What is left is the
   # site's own source, which no release touches.
@@ -35,18 +65,25 @@ permissions:
 
 # Two runs writing gh-pages at once would leave one of them rejected. Queue them
 # instead of cancelling: a cancelled run is a site that silently stayed stale.
-# Pull request renders write nothing, so they get a group of their own and may
-# cancel freely rather than queue behind a release.
+# Renders that write nothing -- pull requests, and the sync's `render_only` call
+# -- get a group of their own and may cancel freely rather than queue behind a
+# release, or hold one up.
 concurrency:
-  group: gh-pages-site${{ github.event_name == 'pull_request' && format('-pr-{0}', github.event.number) || '' }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: gh-pages-site${{ (github.event_name == 'pull_request' && format('-pr-{0}', github.event.number)) || (inputs.render_only && format('-render-{0}', inputs.ref)) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || inputs.render_only == true }}
 
 jobs:
   build:
     name: Render the site
     runs-on: ubuntu-latest
     steps:
+      # `inputs` is unavailable outside a workflow_call or workflow_dispatch run,
+      # and an unavailable context is the empty string rather than an error -- so
+      # on a pull request or a push this is actions/checkout's own default, the
+      # normal checkout. The same trick as in lint-test.yaml.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Check out the published branch
         uses: actions/checkout@v7
@@ -71,7 +108,9 @@ jobs:
             --output gh-pages
 
       # So a reviewer can open the pages the change produces instead of reading
-      # the generator and imagining them.
+      # the generator and imagining them. Pull requests only: the sync's render is
+      # a pass-or-fail check, and one artifact name per workflow run means a night
+      # that updates two charts would have its second upload rejected.
       - name: Upload the rendered site
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v7
@@ -89,9 +128,17 @@ jobs:
 
       # `github.event_name` inside a called workflow is the event that triggered
       # the caller, which for release.yaml is a push -- so this step runs there
-      # and is skipped only on the pull request renders above.
+      # and is skipped only on the pull request renders above. The sync calls
+      # this workflow from a `schedule` run, where that test says nothing, and
+      # its branch is not merged yet: `render_only` is what keeps an unmerged
+      # chart off the published site.
+      #
+      # The flag is negative on purpose. Outside a called run `inputs.render_only`
+      # is the empty string, which compares equal to `false` -- a positive
+      # `publish` input would therefore evaluate to "do not publish" on exactly
+      # the push and dispatch paths that must publish.
       - name: Commit and push
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && !inputs.render_only
         working-directory: gh-pages
         run: |
           git config user.name "$GITHUB_ACTOR"

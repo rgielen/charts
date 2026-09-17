@@ -185,6 +185,35 @@ jobs:
     with:
       ref: ${{ matrix.branch }}
 
+  # The other half of what a pull request would have checked. `verify` above is
+  # lint and install; this is the gh-pages render, and nothing else exercises
+  # build_pages.py against the two inputs every chart bump moves -- Chart.yaml
+  # and the generated README -- before they reach main. Called for the same
+  # reason as `verify`: the pull request was opened with GITHUB_TOKEN and
+  # triggers no `pull_request` run of its own.
+  #
+  # `render_only` is what keeps the branch off the published site: the called
+  # workflow decides whether to push from `github.event_name`, which inside this
+  # run is `schedule` and would mean "push" -- publishing a chart page for a
+  # version that is not merged, let alone released.
+  render:
+    name: Render the site for ${{ matrix.name }}
+    needs: detect
+    if: needs.detect.outputs.updates != '' && needs.detect.outputs.updates != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.detect.outputs.updates) }}
+    # Rendering reads; only the caller's own jobs write. The workflow-level
+    # `contents: write` above would otherwise be handed to a job that has no use
+    # for it, including the gh-pages checkout it keeps credentials from.
+    permissions:
+      contents: read
+    uses: ./.github/workflows/pages.yaml
+    with:
+      ref: ${{ matrix.branch }}
+      render_only: true
+
   # Layer two: what a held change *means* for the chart, as opposed to whether
   # anything changed. It runs only on entries layer one already held, and nothing
   # reads its result but a comment and a label -- `merge` below requires
@@ -281,7 +310,7 @@ jobs:
 
   merge:
     name: Merge ${{ matrix.name }}
-    needs: [detect, verify]
+    needs: [detect, verify, render]
     if: needs.detect.outputs.updates != '' && needs.detect.outputs.updates != '[]'
     runs-on: ubuntu-latest
     strategy:
@@ -308,8 +337,9 @@ jobs:
       # workflow_dispatch is the documented exception to that rule -- one of the
       # two events GITHUB_TOKEN may still raise -- which is why release.yaml
       # carries the trigger already. No status check is skipped by going this
-      # way: the verify job has run lint and install against this branch before
-      # the merge step above was allowed to run at all.
+      # way: the verify and render jobs have run lint, install and the gh-pages
+      # render against this branch before the merge step above was allowed to run
+      # at all.
       #
       # Implicit `success()`: a failed merge skips this step rather than
       # releasing a main that does not contain the bump.

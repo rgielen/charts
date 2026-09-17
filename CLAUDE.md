@@ -114,7 +114,12 @@ version column either.
 The same workflow renders on pull requests with the push step skipped, and uploads the
 result as the `site` artifact. That render *is* the check: nothing else here reads a chart's
 `Chart.yaml` and generated README the way the generator does, so without it a broken
-generator would first show up on `main`.
+generator would first show up on `main`. `upstream-sync.yaml` gets the same check by
+*calling* the workflow with `render_only: true` — its own pull requests trigger no
+`pull_request` run, and its branch is not merged, so the render must not reach `gh-pages`.
+The flag is negative because outside a called run `inputs.render_only` is the empty string,
+which compares equal to `false`; a positive `publish` input would read as "do not publish"
+on exactly the push and dispatch paths that must.
 
 Three consequences worth knowing:
 
@@ -196,10 +201,13 @@ the upstream publishes image tags with no matching GitHub release — and diffs 
 `-watch-paths` files between them. Everything it cannot determine is `review`, which holds
 the pull request with the diff in its body. It never decides whether a change *matters*.
 
-The workflow verifies its own pull request by *calling* `lint-test.yaml` through
-`workflow_call` rather than waiting for it: a pull request opened with `GITHUB_TOKEN` never
-triggers `pull_request` workflows, so waiting would wait forever. This keeps one
-implementation of lint and install, and needs no personal access token.
+The workflow verifies its own pull request by *calling* `lint-test.yaml` and `pages.yaml`
+through `workflow_call` rather than waiting for them: a pull request opened with
+`GITHUB_TOKEN` never triggers `pull_request` workflows, so waiting would wait forever. This
+keeps one implementation of lint, install and the site render, and needs no personal access
+token. Both are in `merge`'s `needs` — unlike `review`, they are deterministic checks with
+a pass or a fail, which is the line between something that may gate a merge and something
+that may not.
 
 The same token rule has a second edge, and it is the sharper one: the merge itself pushes
 to `main` with `GITHUB_TOKEN`, so `release.yaml` — which listens for `push` — never sees it.
