@@ -178,6 +178,7 @@ Non-sensitive environment, as `key: "value"` lines for a ConfigMap.
 {{- $d := dict }}
 {{- include "manifest-llm-gateway.put" (list $d "PORT" $m.port) }}
 {{- include "manifest-llm-gateway.put" (list $d "BETTER_AUTH_URL" (include "manifest-llm-gateway.publicUrl" .)) }}
+{{- include "manifest-llm-gateway.put" (list $d "BETTER_AUTH_ALLOWED_HOSTS" (join "," $m.authAllowedHosts)) }}
 {{- include "manifest-llm-gateway.put" (list $d "MANIFEST_MODE" $m.mode) }}
 {{- include "manifest-llm-gateway.put" (list $d "WINGMAN_CORS_ORIGINS" (join "," $m.corsOrigins)) }}
 {{- if $m.disableHsts }}

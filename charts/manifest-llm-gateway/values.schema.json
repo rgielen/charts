@@ -68,6 +68,11 @@
         },
         "disableHsts": { "type": "boolean" },
         "corsOrigins": { "type": "array", "items": { "type": "string" } },
+        "authAllowedHosts": {
+          "type": "array",
+          "description": "Hostnames with an optional port, or full origins; `*.example.com` wildcards are allowed. The upstream drops what it cannot parse, so a typo here is silent -- hence the pattern.",
+          "items": { "type": "string", "pattern": "^(https?://)?(\\*\\.)?[A-Za-z0-9-._~%]+(:[0-9]{1,5})?/?$" }
+        },
         "existingSecret": { "type": "string" },
         "runMigrationsOnBoot": { "type": "boolean" },
         "migrations": {

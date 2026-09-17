@@ -1,6 +1,6 @@
 ---
 name: local-chart-toolchain-missing
-description: crane, helm-docs and ct are not installed on this workstation; fetch the CI-pinned versions into the scratchpad, and ct needs three extras to run from its tarball
+description: crane, helm-docs and ct are not installed on this workstation; fetch the CI-pinned versions into the scratchpad, ct needs three extras to run from its tarball, and helm 4 renders NOTES.txt only through install --dry-run
 metadata:
   type: project
 ---
@@ -43,6 +43,15 @@ The pins live in `.github/workflows/upstream-sync.yaml` (`CRANE_VERSION`),
 release that `lint-test.yaml` uses. Note that `ct lint --all` prints
 `Version increment checking disabled` — `--all` turns that check off, so it never catches
 the missing bump described at the top of `CLAUDE.md`.
+
+**Rendering `NOTES.txt` locally.** The `helm` here is 4.3.0, which has no `helm template
+--notes`; the flag was removed. The failure is the usual shape — `unknown flag` goes to
+stderr, a piped `grep` swallows it, and a NOTES assertion reads as "the hint did not fire"
+rather than "the command never ran". Use `helm install <name> <chart> --dry-run=client`,
+which prints the rendered notes. `--api-versions` is a `helm template` flag only, so a
+template behind a `.Capabilities` guard — `httproute.yaml` — fails the whole dry-run and
+takes the notes with it; copy the chart aside and delete that one template to exercise a
+NOTES branch behind it.
 
 **Why:** every one of these silently degrades rather than stopping. A `crane`-less audit
 answers "nothing unmodelled" for a chart it never compared, which is exactly the answer

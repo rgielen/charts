@@ -11,7 +11,7 @@
 - [OPEN: follow-ups](open-followups.md) — one item left: the inotify limits on the workstation may not survive a reboot
 - [Manifest migration paths](manifest-migration-paths.md) — two paths, one lock, one CLI; concurrent migrate.js runs deadlock on CREATE INDEX CONCURRENTLY
 - [Both layers of the drift check are built](upstream-drift-layer-2-planned.md) — layer 2 invokes the /analyze-upstream skill; escalate-only is a property of the job graph
-- [Local chart toolchain is missing](local-chart-toolchain-missing.md) — no crane, helm-docs or ct here; fetch the CI-pinned versions into the scratchpad, ct needs yamale, yamllint and its own etc/
+- [Local chart toolchain is missing](local-chart-toolchain-missing.md) — no crane, helm-docs or ct here; fetch the CI-pinned versions into the scratchpad, ct needs yamale, yamllint and its own etc/, and helm 4 has no `template --notes`
 - [The /analyze-upstream skill](analyze-upstream-skill.md) — interactive companion to the CI drift check, and the intended implementation of layer 2
 - [Downstream automerge needs ignoreTests](downstream-automerges-minor-bumps.md) — a repo with no checks reports status `pending` forever, so Renovate never automerges; fixed and proven end to end
 - [DEFERRED: hermes-webui chart](hermes-webui-chart-deferred.md) — analysed and decided, not built; plan in `.claude/plans/hermes-webui.md`, issue #41
