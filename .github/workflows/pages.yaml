@@ -60,6 +60,9 @@ on:
       - ".github/site/**"
       - ".github/workflows/pages.yaml"
 
+# Every caller must grant at least this, even one that passes `render_only`: a
+# called workflow cannot ask for more than its caller's job holds, and GitHub
+# refuses the whole caller run at startup -- no jobs, no logs -- if it does.
 permissions:
   contents: write # pushes the rendered pages to gh-pages
 
