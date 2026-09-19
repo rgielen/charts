@@ -5,6 +5,7 @@
 - [Commit the memory with the work](commit-memory-with-the-work.md) — memory changes are always committed and pushed in the same session; uncommitted memory is worse than none
 - [helm-docs concatenates templates](helm-docs-template-concatenation.md) — a missing README.md.gotmpl silently duplicates every section, so each chart needs one
 - [GITHUB_TOKEN triggers no workflows](github-token-does-not-trigger-workflows.md) — neither for the PR it opens nor for the push its merge makes; the second one silently published nothing twice
+- [Called workflows cannot raise permissions](called-workflow-permissions.md) — the caller job must grant everything the reusable workflow declares, or every run is a log-less startup_failure
 - [Never generate secrets in charts](never-generate-secrets-in-charts.md) — ArgoCD renders without `lookup`; a key that changes behind the operator's back is silent data loss, a deliberate rotation is not
 - [Charts start at 1.0.0](charts-start-at-1-0-0.md) — no 0.x phase; a pinned targetRevision deserves a stable values interface
 - [renovate.json has no comments](renovate-json-has-no-comments.md) — a `_comment_*` key is an invalid option and stops every Renovate PR; use `description`

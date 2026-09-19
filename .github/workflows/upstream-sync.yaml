@@ -204,11 +204,14 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.detect.outputs.updates) }}
-    # Rendering reads; only the caller's own jobs write. The workflow-level
-    # `contents: write` above would otherwise be handed to a job that has no use
-    # for it, including the gh-pages checkout it keeps credentials from.
+    # `contents: write` although this render only reads: pages.yaml declares
+    # `contents: write` for its push path, and a called workflow may never ask
+    # for more than its caller grants. GitHub checks that before the run starts,
+    # for every job regardless of its `if`, so `contents: read` here made every
+    # night a startup_failure with no jobs and no logs -- including nights with
+    # nothing to update. `render_only` is what keeps the token from pushing.
     permissions:
-      contents: read
+      contents: write
     uses: ./.github/workflows/pages.yaml
     with:
       ref: ${{ matrix.branch }}
