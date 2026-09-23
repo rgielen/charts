@@ -139,10 +139,22 @@ worse -- making every stored provider credential undecryptable.
 {{- if and (gt (int .Values.replicaCount) 1) .Values.manifest.runMigrationsOnBoot }}
 {{- fail "manifest-llm-gateway: replicaCount > 1 with manifest.runMigrationsOnBoot=true will hang the rollout, not just race. The boot path applies migrations without the advisory lock the upstream's migration entry point takes, and one of the pending migrations is a CREATE INDEX CONCURRENTLY -- which waits for the other replicas' sessions, while those wait for the lock. Nothing breaks the cycle. Use the migration Job (manifest.migrations.job.enabled=true, the default) and leave runMigrationsOnBoot=false." }}
 {{- end }}
-{{- $publicUrl := include "manifest-llm-gateway.publicUrl" . }}
-{{- if and $publicUrl (hasPrefix "http://" $publicUrl) (not (regexMatch "^http://(localhost|127\\.0\\.0\\.1|\\[::1\\])(:[0-9]+)?(/.*)?$" $publicUrl)) }}
-{{- fail (printf "manifest-llm-gateway: the public URL is %s -- plain http on a host that is not loopback. Since appVersion 6.24.0 the upstream wires Better Auth's MCP plugin unconditionally, and it rejects a non-HTTPS resource URL while the module loads: the process exits before it listens, so the pod never leaves CrashLoopBackOff and the log reads `MCP resource URL must use HTTPS`. Serve the dashboard over https and set manifest.publicUrl (or give the host a matching ingress.tls entry) accordingly, or stay on chart 2.5.1 with appVersion 6.23.4." $publicUrl) }}
-{{- end }}
+{{/*
+  Plain http on a non-loopback publicUrl is deliberately *not* refused any more.
+  Up to appVersion 6.25.2 it had to be: the upstream built Better Auth's MCP
+  plugin unconditionally, the plugin rejected the non-HTTPS resource URL derived
+  from BETTER_AUTH_URL while the module loaded, and the process exited before it
+  listened -- a pod that never left CrashLoopBackOff. Since 6.25.3
+  `auth/mcp-availability.ts` decides before the plugin is constructed: such an
+  install boots and serves the dashboard and the gateway, without the MCP
+  surface, and logs why. Refusing it here would now reject a configuration the
+  upstream supports. NOTES.txt reports the two remaining consequences (no HSTS,
+  no MCP), and manifest.mcpEnabled acknowledges them.
+
+  This is why image.tag must not be pinned below the chart's appVersion on a
+  plain-http host: the crash is a property of the image, not of the chart.
+*/}}
+
 {{- if and (gt (int .Values.replicaCount) 1) .Values.persistence.enabled (not .Values.manifest.recordings.s3.bucket) (not (has "ReadWriteMany" .Values.persistence.accessModes)) }}
 {{- fail "manifest-llm-gateway: replicaCount > 1 with a ReadWriteOnce recordings volume. The replicas cannot share it, so all but the first stay Pending. Configure manifest.recordings.s3 instead, or set persistence.accessModes to include ReadWriteMany if your storage supports it." }}
 {{- end }}
@@ -184,11 +196,16 @@ Non-sensitive environment, as `key: "value"` lines for a ConfigMap.
 {{- if $m.disableHsts }}
 {{- include "manifest-llm-gateway.put" (list $d "MANIFEST_DISABLE_HSTS" "1") }}
 {{- end }}
+{{- include "manifest-llm-gateway.put" (list $d "MCP_ENABLED" $m.mcpEnabled) }}
 
 {{- include "manifest-llm-gateway.put" (list $d "DB_POOL_MAX" $m.database.poolMax) }}
 {{- include "manifest-llm-gateway.put" (list $d "AUTH_DB_POOL_MAX" $m.database.authPoolMax) }}
 {{- include "manifest-llm-gateway.put" (list $d "DB_TUNE_SESSION" $m.database.tuneSession) }}
 {{- include "manifest-llm-gateway.put" (list $d "RUN_MIGRATIONS_ON_BOOT" $m.runMigrationsOnBoot) }}
+
+{{- include "manifest-llm-gateway.put" (list $d "AGENT_USAGE_DAILY_WORKER" $m.agentUsage.dailyWorker) }}
+{{- include "manifest-llm-gateway.put" (list $d "AGENT_USAGE_DAILY_BATCH_SIZE" $m.agentUsage.batchSize) }}
+{{- include "manifest-llm-gateway.put" (list $d "AGENT_USAGE_DAILY_RUN_BUDGET_MS" $m.agentUsage.runBudgetMs) }}
 
 {{- include "manifest-llm-gateway.put" (list $d "PROVIDER_TIMEOUT_MS" $m.proxy.providerTimeoutMs) }}
 {{- include "manifest-llm-gateway.put" (list $d "STREAM_WARMUP_MS" $m.proxy.streamWarmupMs) }}

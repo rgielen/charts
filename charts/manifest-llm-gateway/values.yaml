@@ -277,10 +277,13 @@ manifest:
   # -- Public URL the dashboard is reached at (`BETTER_AUTH_URL`). Must match
   # what the browser actually uses, or logins and OAuth callbacks break. No
   # trailing slash — the application appends paths such as `/api/auth/...` to
-  # this value. **Must be `https://`** unless it is a loopback address: since
-  # appVersion 6.24.0 the upstream builds its MCP resource URL from this value
-  # and refuses a non-HTTPS one while loading, so a plain-http host leaves the
-  # pod in CrashLoopBackOff. The chart refuses to render that instead.
+  # this value. Prefer `https://`, but plain http on a LAN or tailnet host is
+  # supported: up to appVersion 6.25.2 it left the pod in CrashLoopBackOff,
+  # because the upstream derived its MCP resource URL from this value and the
+  # MCP plugin rejects a non-HTTPS one while loading. Since 6.25.3 the upstream
+  # decides before building that plugin, so such an install boots and simply
+  # serves no MCP endpoint. What remains on plain http: no HSTS (see
+  # `disableHsts`) and no remote MCP (see `mcpEnabled`).
   # @default -- derived from the first `ingress.hosts` entry when an Ingress is enabled
   # @section -- Manifest: core
   publicUrl: ""
@@ -298,6 +301,17 @@ manifest:
   # anywhere reachable from the internet.
   # @section -- Manifest: core
   disableHsts: false
+
+  # -- Serve the remote MCP endpoint at `/api/v1/mcp`, with its OAuth endpoints
+  # (`MCP_ENABLED`). On by default, and the upstream switches it off by itself
+  # when `publicUrl` is plain http on a host that is not loopback — the MCP
+  # resource URL is derived from `publicUrl` and `@better-auth/mcp` accepts only
+  # HTTPS or loopback — naming the reason on every boot. Set this to false to
+  # acknowledge that, or to close the MCP surface on an install that could serve
+  # it. Only a falsey string disables it upstream, which is what `false` here
+  # becomes.
+  # @section -- Manifest: core
+  mcpEnabled: true
 
   # -- Extra browser origins allowed to call the gateway
   # (`WINGMAN_CORS_ORIGINS`). Joined with commas.
@@ -568,11 +582,14 @@ manifest:
       # @section -- Manifest: operations
       backoffLimit: 3
       # -- Hard timeout for the whole Job. A first migration on an empty
-      # database builds every index and is not instant. Raise it for
-      # `manifest.mode: cloud`: the upstream's cloud-only migrations build
-      # indexes on `requests` with `CREATE INDEX CONCURRENTLY` and budget
-      # minutes for one of them. Under `selfhosted` they return without
-      # touching the schema, which is why the default fits.
+      # database builds every index and is not instant. Since appVersion 6.25.3
+      # several migrations build indexes on `requests` and `agent_messages` with
+      # `CREATE INDEX CONCURRENTLY`, and the upstream deliberately does **not**
+      # gate them by deployment mode — the dashboard and retention queries they
+      # serve run self-hosted too. The default fits a small database, where
+      # those builds finish in seconds. Raise it for a large one, whatever
+      # `manifest.mode` is set to; upstream budgets minutes per index on tables
+      # of millions of rows.
       # @section -- Manifest: operations
       activeDeadlineSeconds: 900
       # -- Resource requests and limits for the migration pod.
@@ -601,12 +618,33 @@ manifest:
   # -- Also apply migrations when the application boots
   # (`RUN_MIGRATIONS_ON_BOOT`). Off, because `migrations.job` already did it.
   # Turning it on with more than one replica is refused: the boot path does not
-  # take the advisory lock the Job's entry point takes, and one pending
-  # migration is a `CREATE INDEX CONCURRENTLY` that waits for the other
+  # take the advisory lock the Job's entry point takes, and several pending
+  # migrations are a `CREATE INDEX CONCURRENTLY` that waits for the other
   # replicas' sessions while those wait for the lock — a cycle PostgreSQL does
   # not detect and does not break.
   # @section -- Manifest: operations
   runMigrationsOnBoot: false
+
+  agentUsage:
+    # -- Run the per-agent daily usage rollup worker
+    # (`AGENT_USAGE_DAILY_WORKER`). Since appVersion 6.25.3 the dashboard's
+    # agent usage figures are aggregated into `agent_usage_daily` by a job that
+    # fires every minute, instead of being queried from the raw request tables.
+    # It is not gated by deployment mode, so it runs here too. Set false to
+    # pause it — reads then fall back to the raw tables, which is correct but
+    # slower on a large database.
+    # @section -- Manifest: operations
+    dailyWorker: true
+    # -- Rows the worker claims per source table per run
+    # (`AGENT_USAGE_DAILY_BATCH_SIZE`). Lower it to spread the initial backfill
+    # of an existing database over more, smaller transactions.
+    # @section -- Manifest: operations
+    batchSize: 250
+    # -- Work budget in ms for each one-minute run
+    # (`AGENT_USAGE_DAILY_RUN_BUDGET_MS`). The worker stops claiming batches
+    # once it is spent and resumes on the next tick.
+    # @section -- Manifest: operations
+    runBudgetMs: 5000
 
   # -- Grace period in ms to finish in-flight requests after SIGTERM
   # (`SHUTDOWN_DRAIN_MS`). Keep `terminationGracePeriodSeconds` above it.

@@ -29,6 +29,20 @@ human. Fixed by dispatching `release.yaml` from the merge job: `workflow_dispatc
 `repository_dispatch` are the two events `GITHUB_TOKEN` may still raise — and the dispatch
 needs `actions: write`, which the workflow's own permissions block did not grant.
 
+**One refinement, measured on 2026-09-23.** "Triggers no run" is not quite what happens to
+a `pull_request` run on an `upstream/*` branch: GitHub *creates* it and parks it at
+`action_required`, waiting for a human to approve it. #57 sat that way with two runs;
+approving the same two on #58 ran `lint-test.yaml` and `pages.yaml` for real, both green.
+So the CLAUDE.md note about a red check on such a pull request describes these very runs —
+never approved, then closed as `failure` with no jobs when `--delete-branch` removes the
+branch.
+
+Approving them is safe and is a second, genuine verification: neither can publish. `pages.yaml`
+skips its push step on `pull_request`, and `release.yaml` listens only for `push` to `main`
+plus `workflow_dispatch`. Confirm a release the way it was confirmed then — the newest
+`release.yaml` run, the tags, and `version:` in `gh-pages:index.yaml` — rather than
+inferring one from a green run on a pull request.
+
 **How to apply:** any future automation that opens a PR and then wants it verified must
 call the reusable workflow rather than wait for a check run; anything that *merges* must
 start the follow-on workflow explicitly, because no push it makes will. When a pipeline

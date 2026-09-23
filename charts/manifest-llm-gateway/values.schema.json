@@ -67,6 +67,10 @@
           "enum": ["selfhosted", "local", "cloud"]
         },
         "disableHsts": { "type": "boolean" },
+        "mcpEnabled": {
+          "type": "boolean",
+          "description": "The upstream also switches MCP off by itself when publicUrl is plain http on a non-loopback host, whatever this says; it never switches it back on."
+        },
         "corsOrigins": { "type": "array", "items": { "type": "string" } },
         "authAllowedHosts": {
           "type": "array",
@@ -86,6 +90,14 @@
                 "activeDeadlineSeconds": { "type": "integer", "minimum": 1 }
               }
             }
+          }
+        },
+        "agentUsage": {
+          "type": "object",
+          "properties": {
+            "dailyWorker": { "type": "boolean" },
+            "batchSize": { "type": "integer", "minimum": 1 },
+            "runBudgetMs": { "type": "integer", "minimum": 1 }
           }
         },
         "shutdownDrainMs": { "type": "integer", "minimum": 0 },

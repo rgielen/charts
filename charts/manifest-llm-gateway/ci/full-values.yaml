@@ -13,11 +13,11 @@ manifest:
     # renders, mounts and runs without leaving the install unhealthy.
     previousEncryptionKey: ci-only-previous-encryption-key-0123456789
   disableHsts: true
-  # https, and not for show: since appVersion 6.24.0 the upstream refuses a
-  # non-HTTPS MCP resource URL at boot, and this URL is what it is built from.
-  # Nothing terminates TLS in the kind cluster -- the value only has to be
-  # well-formed, and the chart's own guard rejects the http:// form before the
-  # pod would.
+  # https, and not for show: this is what the upstream builds its MCP resource
+  # URL from, and only an HTTPS (or loopback) one carries the MCP surface. So
+  # this scenario is the one that boots *with* MCP enabled. Nothing terminates
+  # TLS in the kind cluster -- the value only has to be well-formed for the
+  # plugin to accept it. ci/http-lan-values.yaml covers the opposite case.
   publicUrl: https://manifest.ci.example.com
   # The second Ingress host below, so the two-host auth path renders and the
   # pod boots with it. A wildcard entry rides along to prove the schema pattern
