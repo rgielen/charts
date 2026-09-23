@@ -22,11 +22,11 @@
 <p class="crumbs"><a href="../">Charts</a> <span>/</span> manifest-llm-gateway</p>
 <h1>manifest-llm-gateway</h1>
 <p class="lede">Manifest, the self-hosted LLM gateway, proxy and dashboard.</p>
-<p class="badges"><span class="badge"><span>Chart</span><b>2.8.1</b></span><span class="badge"><span>App</span><b>6.25.2</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
+<p class="badges"><span class="badge"><span>Chart</span><b>2.8.2</b></span><span class="badge"><span>App</span><b>6.25.5</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
 <p class="page-links"><a href="https://manifest.build">manifest.build</a></p>
 
 <div class="layout">
-<nav class="toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li><a href="#installation">Installation</a></li><li><a href="#source-code">Source Code</a></li><li><a href="#values">Values</a><ul><li><a href="#workload">Workload</a></li><li><a href="#extensibility">Extensibility</a></li><li><a href="#networking">Networking</a></li><li><a href="#image">Image</a></li><li><a href="#manifest-core">Manifest: core</a></li><li><a href="#manifest-llm-proxy">Manifest: LLM proxy</a></li><li><a href="#manifest-database">Manifest: database</a></li><li><a href="#manifest-email-and-oauth">Manifest: email and OAuth</a></li><li><a href="#manifest-operations">Manifest: operations</a></li><li><a href="#manifest-request-recordings">Manifest: request recordings</a></li><li><a href="#manifest-observability">Manifest: observability</a></li><li><a href="#persistence">Persistence</a></li></ul></li><li><a href="#quick-start">Quick start</a></li><li><a href="#secrets">Secrets</a><ul><li><a href="#rotating-the-encryption-key">Rotating the encryption key</a></li></ul></li><li><a href="#reverse-proxy-and-publicurl">Reverse proxy and publicUrl</a><ul><li><a href="#more-than-one-host">More than one host</a></li></ul></li><li><a href="#database">Database</a></li><li><a href="#request-recordings">Request recordings</a></li><li><a href="#database-migrations">Database migrations</a></li><li><a href="#high-availability">High availability</a></li><li><a href="#upgrading">Upgrading</a></li><li><a href="#use-from-argocd">Use from ArgoCD</a></li><li><a href="#environment-variable-mapping">Environment variable mapping</a><ul><li><a href="#deliberately-not-modelled">Deliberately not modelled</a></li></ul></li><li><a href="#maintainers">Maintainers</a></li><li><a href="#published-versions">Published versions</a></li><li><a href="#upstream-tracking">Upstream tracking</a></li></ul></nav>
+<nav class="toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li><a href="#installation">Installation</a></li><li><a href="#source-code">Source Code</a></li><li><a href="#values">Values</a><ul><li><a href="#workload">Workload</a></li><li><a href="#extensibility">Extensibility</a></li><li><a href="#networking">Networking</a></li><li><a href="#image">Image</a></li><li><a href="#manifest-operations">Manifest: operations</a></li><li><a href="#manifest-core">Manifest: core</a></li><li><a href="#manifest-llm-proxy">Manifest: LLM proxy</a></li><li><a href="#manifest-database">Manifest: database</a></li><li><a href="#manifest-email-and-oauth">Manifest: email and OAuth</a></li><li><a href="#manifest-request-recordings">Manifest: request recordings</a></li><li><a href="#manifest-observability">Manifest: observability</a></li><li><a href="#persistence">Persistence</a></li></ul></li><li><a href="#quick-start">Quick start</a></li><li><a href="#secrets">Secrets</a><ul><li><a href="#rotating-the-encryption-key">Rotating the encryption key</a></li></ul></li><li><a href="#reverse-proxy-and-publicurl">Reverse proxy and publicUrl</a><ul><li><a href="#more-than-one-host">More than one host</a></li></ul></li><li><a href="#database">Database</a></li><li><a href="#request-recordings">Request recordings</a></li><li><a href="#database-migrations">Database migrations</a></li><li><a href="#high-availability">High availability</a></li><li><a href="#upgrading">Upgrading</a></li><li><a href="#use-from-argocd">Use from ArgoCD</a></li><li><a href="#environment-variable-mapping">Environment variable mapping</a><ul><li><a href="#deliberately-not-modelled">Deliberately not modelled</a></li></ul></li><li><a href="#maintainers">Maintainers</a></li><li><a href="#published-versions">Published versions</a></li><li><a href="#upstream-tracking">Upstream tracking</a></li></ul></nav>
 <article class="prose">
 <p><a href="https://manifest.build">Manifest</a> is a self-hosted gateway in front of the LLM providers
 you already pay for. It gives you one OpenAI-compatible endpoint, a dashboard for keys,
@@ -57,10 +57,10 @@ Kubernetes.</p>
 <p>From the Helm repository:</p>
 <pre><code class="language-bash">helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.8.1
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.8.2
 </code></pre>
 <p>Or directly from the OCI registry:</p>
-<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.8.1
+<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.8.2
 </code></pre>
 <h2 id="source-code">Source Code<a class="anchor" href="#source-code" title="Permanent link">#</a></h2>
 <ul>
@@ -444,6 +444,109 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.8.
 </tr>
 </tbody>
 </table></div>
+<h3 id="manifest-operations">Manifest: operations<a class="anchor" href="#manifest-operations" title="Permanent link">#</a></h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>manifest.agentUsage.batchSize</td>
+<td>int</td>
+<td><code>250</code></td>
+<td>Rows the worker claims per source table per run (<code>AGENT_USAGE_DAILY_BATCH_SIZE</code>). Lower it to spread the initial backfill of an existing database over more, smaller transactions.</td>
+</tr>
+<tr>
+<td>manifest.agentUsage.dailyWorker</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Run the per-agent daily usage rollup worker (<code>AGENT_USAGE_DAILY_WORKER</code>). Since appVersion 6.25.3 the dashboard's agent usage figures are aggregated into <code>agent_usage_daily</code> by a job that fires every minute, instead of being queried from the raw request tables. It is not gated by deployment mode, so it runs here too. Set false to pause it — reads then fall back to the raw tables, which is correct but slower on a large database.</td>
+</tr>
+<tr>
+<td>manifest.agentUsage.runBudgetMs</td>
+<td>int</td>
+<td><code>5000</code></td>
+<td>Work budget in ms for each one-minute run (<code>AGENT_USAGE_DAILY_RUN_BUDGET_MS</code>). The worker stops claiming batches once it is spent and resumes on the next tick.</td>
+</tr>
+<tr>
+<td>manifest.migrations.job</td>
+<td>object</td>
+<td><code>{"activeDeadlineSeconds":900,"annotations":{},"backoffLimit":3,"enabled":true,"podAnnotations":{},"resources":{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}},"serviceAccountName":""}</code></td>
+<td>Apply migrations from a <code>pre-install</code>/<code>pre-upgrade</code> hook Job instead of on application boot. The Job runs the upstream's own migration entry point, which wraps the run in a PostgreSQL advisory lock, and it runs exactly once per release — so the schema is in place before any pod starts, and a failed migration is a failed Job with readable logs rather than a pod stuck in CrashLoopBackOff.</td>
+</tr>
+<tr>
+<td>manifest.migrations.job.activeDeadlineSeconds</td>
+<td>int</td>
+<td><code>900</code></td>
+<td>Hard timeout for the whole Job. A first migration on an empty database builds every index and is not instant. Since appVersion 6.25.3 several migrations build indexes on <code>requests</code> and <code>agent_messages</code> with <code>CREATE INDEX CONCURRENTLY</code>, and the upstream deliberately does <strong>not</strong> gate them by deployment mode — the dashboard and retention queries they serve run self-hosted too. The default fits a small database, where those builds finish in seconds. Raise it for a large one, whatever <code>manifest.mode</code> is set to; upstream budgets minutes per index on tables of millions of rows.</td>
+</tr>
+<tr>
+<td>manifest.migrations.job.annotations</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Extra annotations for the Job object.</td>
+</tr>
+<tr>
+<td>manifest.migrations.job.backoffLimit</td>
+<td>int</td>
+<td><code>3</code></td>
+<td>Retries before the Job is considered failed.</td>
+</tr>
+<tr>
+<td>manifest.migrations.job.enabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Create the migration Job.</td>
+</tr>
+<tr>
+<td>manifest.migrations.job.podAnnotations</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Extra annotations for the migration pod.</td>
+</tr>
+<tr>
+<td>manifest.migrations.job.resources</td>
+<td>object</td>
+<td><code>{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}</code></td>
+<td>Resource requests and limits for the migration pod.</td>
+</tr>
+<tr>
+<td>manifest.migrations.job.serviceAccountName</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Service account for the migration pod. Empty uses <code>default</code>, because the chart's own service account does not exist yet when a <code>pre-install</code> hook runs. Point this at a pre-existing account when the migration pod needs an identity of its own — a cloud workload identity for a managed database, say. When <code>serviceAccount.create</code> is false, the configured account already exists and is used automatically.</td>
+</tr>
+<tr>
+<td>manifest.runMigrationsOnBoot</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Also apply migrations when the application boots (<code>RUN_MIGRATIONS_ON_BOOT</code>). Off, because <code>migrations.job</code> already did it. Turning it on with more than one replica is refused: the boot path does not take the advisory lock the Job's entry point takes, and several pending migrations are a <code>CREATE INDEX CONCURRENTLY</code> that waits for the other replicas' sessions while those wait for the lock — a cycle PostgreSQL does not detect and does not break.</td>
+</tr>
+<tr>
+<td>manifest.shutdownDrainMs</td>
+<td>int</td>
+<td><code>10000</code></td>
+<td>Grace period in ms to finish in-flight requests after SIGTERM (<code>SHUTDOWN_DRAIN_MS</code>). Keep <code>terminationGracePeriodSeconds</code> above it.</td>
+</tr>
+<tr>
+<td>manifest.throttle.limit</td>
+<td>int</td>
+<td><code>100</code></td>
+<td>Maximum requests per window per client (<code>THROTTLE_LIMIT</code>).</td>
+</tr>
+<tr>
+<td>manifest.throttle.ttl</td>
+<td>int</td>
+<td><code>60000</code></td>
+<td>Rate limit window in ms (<code>THROTTLE_TTL</code>).</td>
+</tr>
+</tbody>
+</table></div>
 <h3 id="manifest-core">Manifest: core<a class="anchor" href="#manifest-core" title="Permanent link">#</a></h3>
 <div class="table-wrap"><table>
 <thead>
@@ -516,6 +619,12 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.8.
 <td>Name of an existing Secret holding sensitive settings. Its keys are the upstream environment variable names (<code>BETTER_AUTH_SECRET</code>, <code>DATABASE_URL</code>, <code>EMAIL_API_KEY</code>, ...) and it is mounted with <code>envFrom</code>. Takes precedence over the plain values below, which makes it the right choice for GitOps: keep the Secret in sealed-secrets or external-secrets and leave the values here empty.</td>
 </tr>
 <tr>
+<td>manifest.mcpEnabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Serve the remote MCP endpoint at <code>/api/v1/mcp</code>, with its OAuth endpoints (<code>MCP_ENABLED</code>). On by default, and the upstream switches it off by itself when <code>publicUrl</code> is plain http on a host that is not loopback — the MCP resource URL is derived from <code>publicUrl</code> and <code>@better-auth/mcp</code> accepts only HTTPS or loopback — naming the reason on every boot. Set this to false to acknowledge that, or to close the MCP surface on an install that could serve it. Only a falsey string disables it upstream, which is what <code>false</code> here becomes.</td>
+</tr>
+<tr>
 <td>manifest.mode</td>
 <td>string</td>
 <td><code>"selfhosted"</code></td>
@@ -531,7 +640,7 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.8.
 <td>manifest.publicUrl</td>
 <td>string</td>
 <td>derived from the first <code>ingress.hosts</code> entry when an Ingress is enabled</td>
-<td>Public URL the dashboard is reached at (<code>BETTER_AUTH_URL</code>). Must match what the browser actually uses, or logins and OAuth callbacks break. No trailing slash — the application appends paths such as <code>/api/auth/...</code> to this value. <strong>Must be <code>https://</code></strong> unless it is a loopback address: since appVersion 6.24.0 the upstream builds its MCP resource URL from this value and refuses a non-HTTPS one while loading, so a plain-http host leaves the pod in CrashLoopBackOff. The chart refuses to render that instead.</td>
+<td>Public URL the dashboard is reached at (<code>BETTER_AUTH_URL</code>). Must match what the browser actually uses, or logins and OAuth callbacks break. No trailing slash — the application appends paths such as <code>/api/auth/...</code> to this value. Prefer <code>https://</code>, but plain http on a LAN or tailnet host is supported: up to appVersion 6.25.2 it left the pod in CrashLoopBackOff, because the upstream derived its MCP resource URL from this value and the MCP plugin rejects a non-HTTPS one while loading. Since 6.25.3 the upstream decides before building that plugin, so such an install boots and simply serves no MCP endpoint. What remains on plain http: no HSTS (see <code>disableHsts</code>) and no remote MCP (see <code>mcpEnabled</code>).</td>
 </tr>
 </tbody>
 </table></div>
@@ -745,91 +854,6 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.8.
 <td>string</td>
 <td><code>""</code></td>
 <td><code>OPENAI_OAUTH_CLIENT_ID</code></td>
-</tr>
-</tbody>
-</table></div>
-<h3 id="manifest-operations">Manifest: operations<a class="anchor" href="#manifest-operations" title="Permanent link">#</a></h3>
-<div class="table-wrap"><table>
-<thead>
-<tr>
-<th>Key</th>
-<th>Type</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>manifest.migrations.job</td>
-<td>object</td>
-<td><code>{"activeDeadlineSeconds":900,"annotations":{},"backoffLimit":3,"enabled":true,"podAnnotations":{},"resources":{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}},"serviceAccountName":""}</code></td>
-<td>Apply migrations from a <code>pre-install</code>/<code>pre-upgrade</code> hook Job instead of on application boot. The Job runs the upstream's own migration entry point, which wraps the run in a PostgreSQL advisory lock, and it runs exactly once per release — so the schema is in place before any pod starts, and a failed migration is a failed Job with readable logs rather than a pod stuck in CrashLoopBackOff.</td>
-</tr>
-<tr>
-<td>manifest.migrations.job.activeDeadlineSeconds</td>
-<td>int</td>
-<td><code>900</code></td>
-<td>Hard timeout for the whole Job. A first migration on an empty database builds every index and is not instant. Raise it for <code>manifest.mode: cloud</code>: the upstream's cloud-only migrations build indexes on <code>requests</code> with <code>CREATE INDEX CONCURRENTLY</code> and budget minutes for one of them. Under <code>selfhosted</code> they return without touching the schema, which is why the default fits.</td>
-</tr>
-<tr>
-<td>manifest.migrations.job.annotations</td>
-<td>object</td>
-<td><code>{}</code></td>
-<td>Extra annotations for the Job object.</td>
-</tr>
-<tr>
-<td>manifest.migrations.job.backoffLimit</td>
-<td>int</td>
-<td><code>3</code></td>
-<td>Retries before the Job is considered failed.</td>
-</tr>
-<tr>
-<td>manifest.migrations.job.enabled</td>
-<td>bool</td>
-<td><code>true</code></td>
-<td>Create the migration Job.</td>
-</tr>
-<tr>
-<td>manifest.migrations.job.podAnnotations</td>
-<td>object</td>
-<td><code>{}</code></td>
-<td>Extra annotations for the migration pod.</td>
-</tr>
-<tr>
-<td>manifest.migrations.job.resources</td>
-<td>object</td>
-<td><code>{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}</code></td>
-<td>Resource requests and limits for the migration pod.</td>
-</tr>
-<tr>
-<td>manifest.migrations.job.serviceAccountName</td>
-<td>string</td>
-<td><code>""</code></td>
-<td>Service account for the migration pod. Empty uses <code>default</code>, because the chart's own service account does not exist yet when a <code>pre-install</code> hook runs. Point this at a pre-existing account when the migration pod needs an identity of its own — a cloud workload identity for a managed database, say. When <code>serviceAccount.create</code> is false, the configured account already exists and is used automatically.</td>
-</tr>
-<tr>
-<td>manifest.runMigrationsOnBoot</td>
-<td>bool</td>
-<td><code>false</code></td>
-<td>Also apply migrations when the application boots (<code>RUN_MIGRATIONS_ON_BOOT</code>). Off, because <code>migrations.job</code> already did it. Turning it on with more than one replica is refused: the boot path does not take the advisory lock the Job's entry point takes, and one pending migration is a <code>CREATE INDEX CONCURRENTLY</code> that waits for the other replicas' sessions while those wait for the lock — a cycle PostgreSQL does not detect and does not break.</td>
-</tr>
-<tr>
-<td>manifest.shutdownDrainMs</td>
-<td>int</td>
-<td><code>10000</code></td>
-<td>Grace period in ms to finish in-flight requests after SIGTERM (<code>SHUTDOWN_DRAIN_MS</code>). Keep <code>terminationGracePeriodSeconds</code> above it.</td>
-</tr>
-<tr>
-<td>manifest.throttle.limit</td>
-<td>int</td>
-<td><code>100</code></td>
-<td>Maximum requests per window per client (<code>THROTTLE_LIMIT</code>).</td>
-</tr>
-<tr>
-<td>manifest.throttle.ttl</td>
-<td>int</td>
-<td><code>60000</code></td>
-<td>Rate limit window in ms (<code>THROTTLE_TTL</code>).</td>
 </tr>
 </tbody>
 </table></div>
@@ -1072,16 +1096,25 @@ them. Metadata in the database is unaffected.</p>
 uses, or logins and OAuth callbacks fail in ways that look like unrelated bugs. When an
 Ingress is enabled and <code>publicUrl</code> is empty, the chart derives it from the first Ingress
 host, using <code>https</code> if that host appears in <code>ingress.tls</code>.</p>
-<p><strong>It has to be <code>https://</code></strong>, unless it is a loopback address. Since appVersion 6.24.0 the
-upstream wires Better Auth's MCP plugin unconditionally and builds the plugin's resource
-URL out of <code>BETTER_AUTH_URL</code>; the plugin rejects a non-HTTPS resource URL while the module
-loads, so the process exits before it listens and the pod never leaves <code>CrashLoopBackOff</code>
-(<code>MCP resource URL must use HTTPS</code>). The chart refuses to render such a configuration
-rather than let you find out that way. An HTTP-only LAN install therefore needs either a
-TLS-terminating proxy in front — a self-signed certificate is enough, the check looks at
-the scheme — or chart 2.5.1, which packages 6.23.4.</p>
-<p>The application also only sends HSTS for an <code>https://</code> origin and logs a warning on every
-boot otherwise; <code>manifest.disableHsts=true</code> silences that warning where it is not wanted.</p>
+<p><strong>Prefer <code>https://</code></strong>, but plain http on a LAN or tailnet host is supported again. Between
+appVersion 6.24.0 and 6.25.2 it was not: the upstream wired Better Auth's MCP plugin
+unconditionally and built the plugin's resource URL out of <code>BETTER_AUTH_URL</code>, the plugin
+rejected a non-HTTPS resource URL while the module loaded, and the process exited before it
+listened — a pod that never left <code>CrashLoopBackOff</code> (<code>MCP resource URL must use HTTPS</code>).
+This chart refused to render that configuration rather than let you find out that way.</p>
+<p>Since 6.25.3 the upstream decides whether MCP can run <em>before</em> constructing the plugin, so
+an HTTP-only install boots and serves the dashboard and the gateway, without the MCP
+surface, naming the reason in its boot log. The chart's guard is therefore gone. Two
+consequences remain on plain http, and both are only that:</p>
+<ul>
+<li><strong>No HSTS.</strong> The application logs a warning on every boot; <code>manifest.disableHsts=true</code>
+  silences it where it is not wanted.</li>
+<li><strong>No remote MCP endpoint.</strong> <code>manifest.mcpEnabled=false</code> acknowledges it and takes the
+  boot line with it. A TLS-terminating proxy in front is what brings MCP back — a
+  self-signed certificate is enough, only the scheme is inspected.</li>
+</ul>
+<p>One caveat this removes the guard from: the crash belongs to the image, not to the chart.
+Pinning <code>image.tag</code> below the chart's <code>appVersion</code> on a plain-http host brings it back.</p>
 <p>Streaming responses need a generous read timeout on the ingress controller. The annotation
 differs per controller — for ingress-nginx it is
 <code>nginx.ingress.kubernetes.io/proxy-read-timeout</code>, for Traefik it is a <code>ServersTransport</code>.</p>
@@ -1151,7 +1184,7 @@ resources exist, and on upgrade the release's copies still hold the previous val
 more than one replica is refused outright, and that is not caution:</p>
 <blockquote>
 <p>The boot path applies migrations without the advisory lock the migration entry point
-takes. One pending migration is a <code>CREATE INDEX CONCURRENTLY</code>, which waits for every
+takes. Several pending migrations are a <code>CREATE INDEX CONCURRENTLY</code>, which waits for every
 other session that can see the table — including the replicas blocked on the advisory
 lock, which are waiting for the holder, which is waiting for the index. PostgreSQL does
 not recognise this as a deadlock and does not break it. Observed hanging indefinitely
@@ -1160,6 +1193,11 @@ with three concurrent runners against an empty database.</p>
 <p>If <code>manifest.database.url</code> points at a transaction pooler such as PgBouncer, set
 <code>manifest.database.migrationUrl</code> to a direct connection. The advisory lock is
 session-scoped and transaction pooling does not preserve it.</p>
+<p>Those concurrent index builds are not gated by <code>manifest.mode</code> — the dashboard and
+retention queries they serve run self-hosted too — so <code>manifest.migrations.job.activeDeadlineSeconds</code>
+governs them on every install. The 900 s default is ample for a small database, where they
+finish in seconds; on a database of millions of requests, upstream budgets minutes per
+index, and the Job's deadline has to cover the whole run.</p>
 <p><strong>One migration path the Job cannot cover.</strong> Besides the TypeORM migrations, the
 application creates Better Auth's own tables on module init, through a separate code path
 with no lock and no entry point of its own. On a <em>first</em> install with more than one
@@ -1245,7 +1283,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.8.1
+    targetRevision: 2.8.2
     helm:
       valuesObject:
         manifest:
@@ -1431,12 +1469,28 @@ in the left column.</p>
 <td><code>manifest.disableHsts</code></td>
 </tr>
 <tr>
+<td><code>MCP_ENABLED</code></td>
+<td><code>manifest.mcpEnabled</code> — see <a href="#reverse-proxy-and-publicurl">Reverse proxy and <code>publicUrl</code></a></td>
+</tr>
+<tr>
 <td><code>WINGMAN_CORS_ORIGINS</code></td>
 <td><code>manifest.corsOrigins</code> (a list; joined with commas)</td>
 </tr>
 <tr>
 <td><code>THROTTLE_TTL</code>, <code>THROTTLE_LIMIT</code></td>
 <td><code>manifest.throttle.ttl</code>, <code>.limit</code></td>
+</tr>
+<tr>
+<td><code>AGENT_USAGE_DAILY_WORKER</code></td>
+<td><code>manifest.agentUsage.dailyWorker</code></td>
+</tr>
+<tr>
+<td><code>AGENT_USAGE_DAILY_BATCH_SIZE</code></td>
+<td><code>manifest.agentUsage.batchSize</code></td>
+</tr>
+<tr>
+<td><code>AGENT_USAGE_DAILY_RUN_BUDGET_MS</code></td>
+<td><code>manifest.agentUsage.runBudgetMs</code></td>
 </tr>
 <tr>
 <td><code>SHUTDOWN_DRAIN_MS</code></td>
@@ -1484,6 +1538,10 @@ in the left column.</p>
 <tr>
 <td><code>BACKFILL_DATABASE_URL</code></td>
 <td>The third fallback after <code>MIGRATION_DATABASE_URL</code>, which <code>manifest.database.migrationUrl</code> already sets, so the backfill resolver is already satisfied. Cloud-only besides.</td>
+</tr>
+<tr>
+<td><code>AGENT_USAGE_DAILY_READS</code>, <code>AGENT_USAGE_DAILY_READ_TENANTS</code></td>
+<td>Both override <em>where the dashboard reads</em> agent usage from during the staged cutover to the daily rollups — the first forces rollups or raw queries globally, the second names the tenant IDs allowed to read rollups first. The automatic default already waits for the backfill to reach parity before switching, and a self-hosted install has one tenant and no rollout to stage. <code>manifest.agentUsage.dailyWorker</code> covers the part that is operational here: whether the rollup is written at all.</td>
 </tr>
 <tr>
 <td><code>PLUGIN_OTLP_ENDPOINT</code></td>
@@ -1557,6 +1615,13 @@ re-released with different content.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.8.2"><code>2.8.2</code></a></td>
+<td><code>6.25.5</code></td>
+<td>2026-09-23</td>
+<td><a href="https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.8.2/manifest-llm-gateway-2.8.2.tgz"><code>.tgz</code></a></td>
+<td><code>e9fdde77d534ed6d405…</code></td>
+</tr>
 <tr>
 <td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.8.1"><code>2.8.1</code></a></td>
 <td><code>6.25.2</code></td>
@@ -1729,7 +1794,7 @@ unattended only when the bump is not a major one and the diff is clean.</p>
 </tr>
 <tr>
 <td>Release notes</td>
-<td><a href="https://github.com/mnfst/llm-gateway/releases/tag/manifest@6.25.2">manifest@6.25.2</a> — not every image tag has one</td>
+<td><a href="https://github.com/mnfst/llm-gateway/releases/tag/manifest@6.25.5">manifest@6.25.5</a> — not every image tag has one</td>
 </tr>
 <tr>
 <td>Watched files</td>
