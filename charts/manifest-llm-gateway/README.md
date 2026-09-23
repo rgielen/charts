@@ -131,6 +131,26 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | image.tag | string | the chart's `appVersion` | Image tag. |
 | imagePullSecrets | list | `[]` | Secrets used to pull the image from a private registry. |
 
+### Manifest: operations
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| manifest.agentUsage.batchSize | int | `250` | Rows the worker claims per source table per run (`AGENT_USAGE_DAILY_BATCH_SIZE`). Lower it to spread the initial backfill of an existing database over more, smaller transactions. |
+| manifest.agentUsage.dailyWorker | bool | `true` | Run the per-agent daily usage rollup worker (`AGENT_USAGE_DAILY_WORKER`). Since appVersion 6.25.3 the dashboard's agent usage figures are aggregated into `agent_usage_daily` by a job that fires every minute, instead of being queried from the raw request tables. It is not gated by deployment mode, so it runs here too. Set false to pause it — reads then fall back to the raw tables, which is correct but slower on a large database. |
+| manifest.agentUsage.runBudgetMs | int | `5000` | Work budget in ms for each one-minute run (`AGENT_USAGE_DAILY_RUN_BUDGET_MS`). The worker stops claiming batches once it is spent and resumes on the next tick. |
+| manifest.migrations.job | object | `{"activeDeadlineSeconds":900,"annotations":{},"backoffLimit":3,"enabled":true,"podAnnotations":{},"resources":{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}},"serviceAccountName":""}` | Apply migrations from a `pre-install`/`pre-upgrade` hook Job instead of on application boot. The Job runs the upstream's own migration entry point, which wraps the run in a PostgreSQL advisory lock, and it runs exactly once per release — so the schema is in place before any pod starts, and a failed migration is a failed Job with readable logs rather than a pod stuck in CrashLoopBackOff. |
+| manifest.migrations.job.activeDeadlineSeconds | int | `900` | Hard timeout for the whole Job. A first migration on an empty database builds every index and is not instant. Since appVersion 6.25.3 several migrations build indexes on `requests` and `agent_messages` with `CREATE INDEX CONCURRENTLY`, and the upstream deliberately does **not** gate them by deployment mode — the dashboard and retention queries they serve run self-hosted too. The default fits a small database, where those builds finish in seconds. Raise it for a large one, whatever `manifest.mode` is set to; upstream budgets minutes per index on tables of millions of rows. |
+| manifest.migrations.job.annotations | object | `{}` | Extra annotations for the Job object. |
+| manifest.migrations.job.backoffLimit | int | `3` | Retries before the Job is considered failed. |
+| manifest.migrations.job.enabled | bool | `true` | Create the migration Job. |
+| manifest.migrations.job.podAnnotations | object | `{}` | Extra annotations for the migration pod. |
+| manifest.migrations.job.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | Resource requests and limits for the migration pod. |
+| manifest.migrations.job.serviceAccountName | string | `""` | Service account for the migration pod. Empty uses `default`, because the chart's own service account does not exist yet when a `pre-install` hook runs. Point this at a pre-existing account when the migration pod needs an identity of its own — a cloud workload identity for a managed database, say. When `serviceAccount.create` is false, the configured account already exists and is used automatically. |
+| manifest.runMigrationsOnBoot | bool | `false` | Also apply migrations when the application boots (`RUN_MIGRATIONS_ON_BOOT`). Off, because `migrations.job` already did it. Turning it on with more than one replica is refused: the boot path does not take the advisory lock the Job's entry point takes, and several pending migrations are a `CREATE INDEX CONCURRENTLY` that waits for the other replicas' sessions while those wait for the lock — a cycle PostgreSQL does not detect and does not break. |
+| manifest.shutdownDrainMs | int | `10000` | Grace period in ms to finish in-flight requests after SIGTERM (`SHUTDOWN_DRAIN_MS`). Keep `terminationGracePeriodSeconds` above it. |
+| manifest.throttle.limit | int | `100` | Maximum requests per window per client (`THROTTLE_LIMIT`). |
+| manifest.throttle.ttl | int | `60000` | Rate limit window in ms (`THROTTLE_TTL`). |
+
 ### Manifest: core
 
 | Key | Type | Default | Description |
@@ -145,9 +165,10 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.corsOrigins | list | `[]` | Extra browser origins allowed to call the gateway (`WINGMAN_CORS_ORIGINS`). Joined with commas. |
 | manifest.disableHsts | bool | `false` | Silence the boot warning about the missing HSTS header on a plain-http deployment (`MANIFEST_DISABLE_HSTS`). Prefer a real `https://` `publicUrl` anywhere reachable from the internet. |
 | manifest.existingSecret | string | `""` | Name of an existing Secret holding sensitive settings. Its keys are the upstream environment variable names (`BETTER_AUTH_SECRET`, `DATABASE_URL`, `EMAIL_API_KEY`, ...) and it is mounted with `envFrom`. Takes precedence over the plain values below, which makes it the right choice for GitOps: keep the Secret in sealed-secrets or external-secrets and leave the values here empty. |
+| manifest.mcpEnabled | bool | `true` | Serve the remote MCP endpoint at `/api/v1/mcp`, with its OAuth endpoints (`MCP_ENABLED`). On by default, and the upstream switches it off by itself when `publicUrl` is plain http on a host that is not loopback — the MCP resource URL is derived from `publicUrl` and `@better-auth/mcp` accepts only HTTPS or loopback — naming the reason on every boot. Set this to false to acknowledge that, or to close the MCP surface on an install that could serve it. Only a falsey string disables it upstream, which is what `false` here becomes. |
 | manifest.mode | string | `"selfhosted"` | Deployment mode (`MANIFEST_MODE`). `selfhosted` relaxes the SSRF rules so private and plain-http provider URLs are allowed. Set explicitly rather than left to auto-detection, exactly as the upstream compose file does. `local` is the upstream's legacy alias for `selfhosted` and behaves identically; prefer `selfhosted` for anything new. |
 | manifest.port | int | `2099` | Port the application listens on (`PORT`). |
-| manifest.publicUrl | string | derived from the first `ingress.hosts` entry when an Ingress is enabled | Public URL the dashboard is reached at (`BETTER_AUTH_URL`). Must match what the browser actually uses, or logins and OAuth callbacks break. No trailing slash — the application appends paths such as `/api/auth/...` to this value. **Must be `https://`** unless it is a loopback address: since appVersion 6.24.0 the upstream builds its MCP resource URL from this value and refuses a non-HTTPS one while loading, so a plain-http host leaves the pod in CrashLoopBackOff. The chart refuses to render that instead. |
+| manifest.publicUrl | string | derived from the first `ingress.hosts` entry when an Ingress is enabled | Public URL the dashboard is reached at (`BETTER_AUTH_URL`). Must match what the browser actually uses, or logins and OAuth callbacks break. No trailing slash — the application appends paths such as `/api/auth/...` to this value. Prefer `https://`, but plain http on a LAN or tailnet host is supported: up to appVersion 6.25.2 it left the pod in CrashLoopBackOff, because the upstream derived its MCP resource URL from this value and the MCP plugin rejects a non-HTTPS one while loading. Since 6.25.3 the upstream decides before building that plugin, so such an install boots and simply serves no MCP endpoint. What remains on plain http: no HSTS (see `disableHsts`) and no remote MCP (see `mcpEnabled`). |
 
 ### Manifest: LLM proxy
 
@@ -192,23 +213,6 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.providerOauth | object | `{"minimaxClientId":"","openaiClientId":""}` | Overrides for the OAuth clients Manifest uses to talk to LLM providers on a user's behalf. Only needed if you registered your own apps instead of using the ones shipped with Manifest. |
 | manifest.providerOauth.minimaxClientId | string | `""` | `MINIMAX_OAUTH_CLIENT_ID` |
 | manifest.providerOauth.openaiClientId | string | `""` | `OPENAI_OAUTH_CLIENT_ID` |
-
-### Manifest: operations
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| manifest.migrations.job | object | `{"activeDeadlineSeconds":900,"annotations":{},"backoffLimit":3,"enabled":true,"podAnnotations":{},"resources":{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}},"serviceAccountName":""}` | Apply migrations from a `pre-install`/`pre-upgrade` hook Job instead of on application boot. The Job runs the upstream's own migration entry point, which wraps the run in a PostgreSQL advisory lock, and it runs exactly once per release — so the schema is in place before any pod starts, and a failed migration is a failed Job with readable logs rather than a pod stuck in CrashLoopBackOff. |
-| manifest.migrations.job.activeDeadlineSeconds | int | `900` | Hard timeout for the whole Job. A first migration on an empty database builds every index and is not instant. Raise it for `manifest.mode: cloud`: the upstream's cloud-only migrations build indexes on `requests` with `CREATE INDEX CONCURRENTLY` and budget minutes for one of them. Under `selfhosted` they return without touching the schema, which is why the default fits. |
-| manifest.migrations.job.annotations | object | `{}` | Extra annotations for the Job object. |
-| manifest.migrations.job.backoffLimit | int | `3` | Retries before the Job is considered failed. |
-| manifest.migrations.job.enabled | bool | `true` | Create the migration Job. |
-| manifest.migrations.job.podAnnotations | object | `{}` | Extra annotations for the migration pod. |
-| manifest.migrations.job.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | Resource requests and limits for the migration pod. |
-| manifest.migrations.job.serviceAccountName | string | `""` | Service account for the migration pod. Empty uses `default`, because the chart's own service account does not exist yet when a `pre-install` hook runs. Point this at a pre-existing account when the migration pod needs an identity of its own — a cloud workload identity for a managed database, say. When `serviceAccount.create` is false, the configured account already exists and is used automatically. |
-| manifest.runMigrationsOnBoot | bool | `false` | Also apply migrations when the application boots (`RUN_MIGRATIONS_ON_BOOT`). Off, because `migrations.job` already did it. Turning it on with more than one replica is refused: the boot path does not take the advisory lock the Job's entry point takes, and one pending migration is a `CREATE INDEX CONCURRENTLY` that waits for the other replicas' sessions while those wait for the lock — a cycle PostgreSQL does not detect and does not break. |
-| manifest.shutdownDrainMs | int | `10000` | Grace period in ms to finish in-flight requests after SIGTERM (`SHUTDOWN_DRAIN_MS`). Keep `terminationGracePeriodSeconds` above it. |
-| manifest.throttle.limit | int | `100` | Maximum requests per window per client (`THROTTLE_LIMIT`). |
-| manifest.throttle.ttl | int | `60000` | Rate limit window in ms (`THROTTLE_TTL`). |
 
 ### Manifest: request recordings
 
@@ -328,17 +332,26 @@ uses, or logins and OAuth callbacks fail in ways that look like unrelated bugs. 
 Ingress is enabled and `publicUrl` is empty, the chart derives it from the first Ingress
 host, using `https` if that host appears in `ingress.tls`.
 
-**It has to be `https://`**, unless it is a loopback address. Since appVersion 6.24.0 the
-upstream wires Better Auth's MCP plugin unconditionally and builds the plugin's resource
-URL out of `BETTER_AUTH_URL`; the plugin rejects a non-HTTPS resource URL while the module
-loads, so the process exits before it listens and the pod never leaves `CrashLoopBackOff`
-(`MCP resource URL must use HTTPS`). The chart refuses to render such a configuration
-rather than let you find out that way. An HTTP-only LAN install therefore needs either a
-TLS-terminating proxy in front — a self-signed certificate is enough, the check looks at
-the scheme — or chart 2.5.1, which packages 6.23.4.
+**Prefer `https://`**, but plain http on a LAN or tailnet host is supported again. Between
+appVersion 6.24.0 and 6.25.2 it was not: the upstream wired Better Auth's MCP plugin
+unconditionally and built the plugin's resource URL out of `BETTER_AUTH_URL`, the plugin
+rejected a non-HTTPS resource URL while the module loaded, and the process exited before it
+listened — a pod that never left `CrashLoopBackOff` (`MCP resource URL must use HTTPS`).
+This chart refused to render that configuration rather than let you find out that way.
 
-The application also only sends HSTS for an `https://` origin and logs a warning on every
-boot otherwise; `manifest.disableHsts=true` silences that warning where it is not wanted.
+Since 6.25.3 the upstream decides whether MCP can run *before* constructing the plugin, so
+an HTTP-only install boots and serves the dashboard and the gateway, without the MCP
+surface, naming the reason in its boot log. The chart's guard is therefore gone. Two
+consequences remain on plain http, and both are only that:
+
+- **No HSTS.** The application logs a warning on every boot; `manifest.disableHsts=true`
+  silences it where it is not wanted.
+- **No remote MCP endpoint.** `manifest.mcpEnabled=false` acknowledges it and takes the
+  boot line with it. A TLS-terminating proxy in front is what brings MCP back — a
+  self-signed certificate is enough, only the scheme is inspected.
+
+One caveat this removes the guard from: the crash belongs to the image, not to the chart.
+Pinning `image.tag` below the chart's `appVersion` on a plain-http host brings it back.
 
 Streaming responses need a generous read timeout on the ingress controller. The annotation
 differs per controller — for ingress-nginx it is
@@ -425,7 +438,7 @@ resources exist, and on upgrade the release's copies still hold the previous val
 more than one replica is refused outright, and that is not caution:
 
 > The boot path applies migrations without the advisory lock the migration entry point
-> takes. One pending migration is a `CREATE INDEX CONCURRENTLY`, which waits for every
+> takes. Several pending migrations are a `CREATE INDEX CONCURRENTLY`, which waits for every
 > other session that can see the table — including the replicas blocked on the advisory
 > lock, which are waiting for the holder, which is waiting for the index. PostgreSQL does
 > not recognise this as a deadlock and does not break it. Observed hanging indefinitely
@@ -434,6 +447,12 @@ more than one replica is refused outright, and that is not caution:
 If `manifest.database.url` points at a transaction pooler such as PgBouncer, set
 `manifest.database.migrationUrl` to a direct connection. The advisory lock is
 session-scoped and transaction pooling does not preserve it.
+
+Those concurrent index builds are not gated by `manifest.mode` — the dashboard and
+retention queries they serve run self-hosted too — so `manifest.migrations.job.activeDeadlineSeconds`
+governs them on every install. The 900 s default is ample for a small database, where they
+finish in seconds; on a database of millions of requests, upstream budgets minutes per
+index, and the Job's deadline has to cover the whole run.
 
 **One migration path the Job cannot cover.** Besides the TypeORM migrations, the
 application creates Better Auth's own tables on module init, through a separate code path
@@ -580,8 +599,12 @@ in the left column.
 | `API_KEY` | `manifest.apiKey` *(secret)* |
 | `CLI_TOKEN_TTL_DAYS`, `CLI_TOKEN_ABSOLUTE_TTL_DAYS` | `manifest.cliToken.ttlDays`, `.absoluteTtlDays` |
 | `MANIFEST_DISABLE_HSTS` | `manifest.disableHsts` |
+| `MCP_ENABLED` | `manifest.mcpEnabled` — see [Reverse proxy and `publicUrl`](#reverse-proxy-and-publicurl) |
 | `WINGMAN_CORS_ORIGINS` | `manifest.corsOrigins` (a list; joined with commas) |
 | `THROTTLE_TTL`, `THROTTLE_LIMIT` | `manifest.throttle.ttl`, `.limit` |
+| `AGENT_USAGE_DAILY_WORKER` | `manifest.agentUsage.dailyWorker` |
+| `AGENT_USAGE_DAILY_BATCH_SIZE` | `manifest.agentUsage.batchSize` |
+| `AGENT_USAGE_DAILY_RUN_BUDGET_MS` | `manifest.agentUsage.runBudgetMs` |
 | `SHUTDOWN_DRAIN_MS` | `manifest.shutdownDrainMs` |
 | `SENTRY_DSN` | `manifest.sentry.dsn` *(secret)* |
 | `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE` | `manifest.sentry.environment`, `.release` |
@@ -601,6 +624,7 @@ The upstream reads these and this chart does not expose them. They are decisions
 | Setting | Why not |
 | ------- | ------- |
 | `BACKFILL_DATABASE_URL` | The third fallback after `MIGRATION_DATABASE_URL`, which `manifest.database.migrationUrl` already sets, so the backfill resolver is already satisfied. Cloud-only besides. |
+| `AGENT_USAGE_DAILY_READS`, `AGENT_USAGE_DAILY_READ_TENANTS` | Both override *where the dashboard reads* agent usage from during the staged cutover to the daily rollups — the first forces rollups or raw queries globally, the second names the tenant IDs allowed to read rollups first. The automatic default already waits for the backfill to reach parity before switching, and a self-hosted install has one tenant and no rollout to stage. `manifest.agentUsage.dailyWorker` covers the part that is operational here: whether the rollup is written at all. |
 | `PLUGIN_OTLP_ENDPOINT` | Documented in the upstream's `.env.example` but read nowhere in the server. |
 | `ERROR_PAGE_PUSH_SECRET` | Gates an internal endpoint for publishing curated error pages. Empty rejects every write, which is the right state for a self-hosted install. |
 | `CRM_METRICS_SECRET` | Guards `/api/v1/internal/crm-metrics`, the feed the hosted service's outreach CRM polls. Cloud-only, and the upstream counts anything shorter than 32 characters as unset, so leaving it empty keeps the route shut — which is what you want from an endpoint that exports user email addresses across tenants. |

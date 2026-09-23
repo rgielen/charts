@@ -1,0 +1,36 @@
+# The plain-http LAN install, which this chart refused to render between chart
+# 2.6.0 and 2.8.1.
+#
+# It refused for a real reason: up to appVersion 6.25.2 the upstream built Better
+# Auth's MCP plugin unconditionally, that plugin rejects a non-HTTPS resource URL
+# while the module loads, and the resource URL is derived from BETTER_AUTH_URL.
+# The process exited before it listened, so the pod never left CrashLoopBackOff.
+#
+# Since 6.25.3 `auth/mcp-availability.ts` makes that decision before the plugin
+# is constructed, and such an install boots without the MCP surface instead. This
+# scenario is what holds the chart to that: an http:// publicUrl on a host that
+# is not loopback has to render *and* come up healthy. If the upstream ever
+# reverts to constructing the plugin unconditionally, this install goes back to
+# CrashLoopBackOff and `ct install` fails here -- which is the point, because
+# nothing else in the test matrix would notice.
+manifest:
+  database:
+    url: postgresql://manifest:manifest@postgres.manifest-llm-gateway-ci.svc.cluster.local:5432/manifest
+  auth:
+    secret: ci-only-session-secret-0123456789abcdef
+  # The whole subject of this scenario: plain http, and deliberately not
+  # loopback, since loopback is the case the upstream allows anyway.
+  publicUrl: http://manifest.ci.internal
+  # Acknowledge what the upstream would otherwise report on every boot. Left at
+  # the default the install is equally healthy -- this also proves the value
+  # reaches the container as the falsey string the upstream looks for.
+  mcpEnabled: false
+  # No TLS in front of it, which is the situation this scenario describes.
+  disableHsts: true
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    memory: 1Gi

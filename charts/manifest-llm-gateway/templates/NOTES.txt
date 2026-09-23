@@ -39,8 +39,23 @@ matches the URL the browser actually uses. Set manifest.publicUrl.
 {{- else if not (hasPrefix "https://" $publicUrl) }}
 
 NOTE: manifest.publicUrl resolves to {{ $publicUrl }}, which is not https. The
-application cannot send HSTS and logs a warning on every boot. Terminate TLS in
-front of it, or set manifest.disableHsts=true on an HTTP-only LAN install.
+application cannot send HSTS.
+{{- if .Values.manifest.disableHsts }}
+manifest.disableHsts is set, so it does not warn about that on every boot.
+Terminate TLS in front of it to get the header itself.
+{{- else }}
+It also logs a warning about that on every boot. Terminate TLS in front of it,
+or set manifest.disableHsts=true on an HTTP-only LAN install.
+{{- end }}
+{{- if not (regexMatch "^http://(localhost|127\\.0\\.0\\.1|\\[::1\\])(:[0-9]+)?(/.*)?$" $publicUrl) }}
+Nor does it serve a remote MCP endpoint: the MCP resource URL is derived from
+this value, and only HTTPS or loopback is accepted. The dashboard and the
+gateway are unaffected.
+{{- if .Values.manifest.mcpEnabled }}
+The upstream names that reason on every boot; manifest.mcpEnabled=false
+acknowledges it and silences the line.
+{{- end }}
+{{- end }}
 {{- end }}
 
 {{- $servedHosts := 0 }}
