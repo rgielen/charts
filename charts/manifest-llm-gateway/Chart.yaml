@@ -4,9 +4,9 @@ description: Manifest, the self-hosted LLM gateway, proxy and dashboard.
 type: application
 
 # The chart's own version. Bumped on every change to this directory.
-version: 2.8.2
+version: 2.9.0
 # The packaged upstream version. Quoted so a two-segment tag stays a string.
-appVersion: "6.25.5"
+appVersion: "6.26.0"
 
 keywords:
   - llm
