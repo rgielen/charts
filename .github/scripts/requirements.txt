@@ -2,5 +2,5 @@
 # Rendering Markdown and reading index.yaml both need a real parser, and hand-
 # rolling either one to keep the stdlib-only streak would be the worse trade.
 # Renovate picks this file up through its pip_requirements manager, no config.
-markdown==3.10.3
+markdown==3.11
 pyyaml==6.0.3
