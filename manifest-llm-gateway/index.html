@@ -22,7 +22,7 @@
 <p class="crumbs"><a href="../">Charts</a> <span>/</span> manifest-llm-gateway</p>
 <h1>manifest-llm-gateway</h1>
 <p class="lede">Manifest, the self-hosted LLM gateway, proxy and dashboard.</p>
-<p class="badges"><span class="badge"><span>Chart</span><b>2.8.2</b></span><span class="badge"><span>App</span><b>6.25.5</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
+<p class="badges"><span class="badge"><span>Chart</span><b>2.9.0</b></span><span class="badge"><span>App</span><b>6.26.0</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
 <p class="page-links"><a href="https://manifest.build">manifest.build</a></p>
 
 <div class="layout">
@@ -57,10 +57,10 @@ Kubernetes.</p>
 <p>From the Helm repository:</p>
 <pre><code class="language-bash">helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.8.2
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.9.0
 </code></pre>
 <p>Or directly from the OCI registry:</p>
-<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.8.2
+<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.9.0
 </code></pre>
 <h2 id="source-code">Source Code<a class="anchor" href="#source-code" title="Permanent link">#</a></h2>
 <ul>
@@ -525,7 +525,7 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.8.
 <td>manifest.runMigrationsOnBoot</td>
 <td>bool</td>
 <td><code>false</code></td>
-<td>Also apply migrations when the application boots (<code>RUN_MIGRATIONS_ON_BOOT</code>). Off, because <code>migrations.job</code> already did it. Turning it on with more than one replica is refused: the boot path does not take the advisory lock the Job's entry point takes, and several pending migrations are a <code>CREATE INDEX CONCURRENTLY</code> that waits for the other replicas' sessions while those wait for the lock — a cycle PostgreSQL does not detect and does not break.</td>
+<td>Also apply migrations when the application boots (<code>RUN_MIGRATIONS_ON_BOOT</code>). Off, because <code>migrations.job</code> already did it. Turning it on with more than one replica is refused: the boot path takes no lock at all, unlike the Job's entry point, so every replica applies the same pending migrations at once — and several of them are a <code>CREATE INDEX CONCURRENTLY</code> that waits for every other session on the table. Concurrent runners hung indefinitely on exactly those builds before appVersion 6.26.0 even with the lock; the upstream's fix covers the Job's entry point only.</td>
 </tr>
 <tr>
 <td>manifest.shutdownDrainMs</td>
@@ -1184,11 +1184,14 @@ resources exist, and on upgrade the release's copies still hold the previous val
 more than one replica is refused outright, and that is not caution:</p>
 <blockquote>
 <p>The boot path applies migrations without the advisory lock the migration entry point
-takes. Several pending migrations are a <code>CREATE INDEX CONCURRENTLY</code>, which waits for every
-other session that can see the table — including the replicas blocked on the advisory
-lock, which are waiting for the holder, which is waiting for the index. PostgreSQL does
-not recognise this as a deadlock and does not break it. Observed hanging indefinitely
-with three concurrent runners against an empty database.</p>
+takes — no lock at all — so every replica runs the same pending migrations at the same
+time, and several of them are a <code>CREATE INDEX CONCURRENTLY</code>, which waits for every other
+session that can see the table. How badly concurrent index builds go wrong was observed
+before appVersion 6.26.0, even <em>with</em> the lock: three concurrent runners against an empty
+database hung indefinitely, the holder's index build waiting on the runners blocked on
+the lock, a cycle PostgreSQL neither recognises nor breaks. Upstream 6.26.0 fixed that
+for the migration entry point only — its waiters now poll for the lock instead of
+blocking — and the boot path still has nothing to wait on.</p>
 </blockquote>
 <p>If <code>manifest.database.url</code> points at a transaction pooler such as PgBouncer, set
 <code>manifest.database.migrationUrl</code> to a direct connection. The advisory lock is
@@ -1283,7 +1286,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.8.2
+    targetRevision: 2.9.0
     helm:
       valuesObject:
         manifest:
@@ -1557,7 +1560,7 @@ in the left column.</p>
 </tr>
 <tr>
 <td><code>MANIFEST_PUBLIC_STATS</code></td>
-<td>Exposes aggregate <code>/api/v1/public/*</code> endpoints <strong>without authentication</strong>. The upstream marks it as being for its own marketing site.</td>
+<td>Serves the published error pages at <code>/api/v1/public/error-pages</code> <strong>without authentication</strong>, for the upstream's own marketing site. The name is historical: since appVersion 6.26.0 the aggregate usage stats it once exposed are gone, and the upstream kept the variable so its existing deployments stay on.</td>
 </tr>
 <tr>
 <td><code>MAILGUN_API_KEY</code>, <code>MAILGUN_DOMAIN</code>, <code>NOTIFICATION_FROM_EMAIL</code></td>
@@ -1615,6 +1618,13 @@ re-released with different content.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.9.0"><code>2.9.0</code></a></td>
+<td><code>6.26.0</code></td>
+<td>2026-10-01</td>
+<td><a href="https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.9.0/manifest-llm-gateway-2.9.0.tgz"><code>.tgz</code></a></td>
+<td><code>98b18be3df667f745ab…</code></td>
+</tr>
 <tr>
 <td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.8.2"><code>2.8.2</code></a></td>
 <td><code>6.25.5</code></td>
@@ -1794,7 +1804,7 @@ unattended only when the bump is not a major one and the diff is clean.</p>
 </tr>
 <tr>
 <td>Release notes</td>
-<td><a href="https://github.com/mnfst/llm-gateway/releases/tag/manifest@6.25.5">manifest@6.25.5</a> — not every image tag has one</td>
+<td><a href="https://github.com/mnfst/llm-gateway/releases/tag/manifest@6.26.0">manifest@6.26.0</a> — not every image tag has one</td>
 </tr>
 <tr>
 <td>Watched files</td>
