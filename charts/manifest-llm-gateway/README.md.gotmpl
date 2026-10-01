@@ -277,7 +277,7 @@ What the chart cannot fix, because it is upstream behaviour:
 | | Effect with `n` replicas |
 | --- | --- |
 | Rate limiting | `THROTTLE_LIMIT` is enforced in memory, per pod. The effective limit is `n ×` the configured value, and a client can draw the full allowance from each pod. |
-| Concurrency cap | `manifest.proxy.concurrencyMax` is per backend process, so the per-tenant ceiling multiplies the same way. |
+| Proxy guardrails | `manifest.proxy.concurrencyMax`, `.rateMaxRequests` and `.ipRateMaxRequests` are per backend process, so the per-tenant and per-IP ceilings multiply the same way. |
 | Threshold alerts | The hourly job checks "already sent?" and then sends, with no lock in between. The same alert can go out more than once. |
 | Dashboard cache | A bounded in-memory LRU per pod, so two replicas can report different figures until the entries expire. Cosmetic. |
 
@@ -369,6 +369,8 @@ in the left column.
 | `STREAM_IDLE_TIMEOUT_MS` | `manifest.proxy.streamIdleTimeoutMs` |
 | `CODEX_SEMANTIC_OUTPUT_TIMEOUT_MS` | `manifest.proxy.codexSemanticOutputTimeoutMs` |
 | `MANIFEST_CONCURRENCY_MAX` | `manifest.proxy.concurrencyMax` |
+| `MANIFEST_RATE_MAX_REQUESTS` | `manifest.proxy.rateMaxRequests` |
+| `MANIFEST_IP_RATE_MAX_REQUESTS` | `manifest.proxy.ipRateMaxRequests` |
 | `OLLAMA_HOST` | `manifest.ollamaHost` |
 | `CREDITS_BASE_URL`, `CREDITS_AUTO_PROVISION_ALLOWLIST`, `CREDITS_GEMINI_FREE_MAX_BUDGET` | `manifest.credits.baseUrl`, `.autoProvisionAllowlist`, `.geminiFreeMaxBudget` |
 | `CREDITS_MASTER_KEY` | `manifest.credits.masterKey` *(secret)* |

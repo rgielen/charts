@@ -1,6 +1,6 @@
 # manifest-llm-gateway
 
-![Version: 2.9.0](https://img.shields.io/badge/Version-2.9.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.26.0](https://img.shields.io/badge/AppVersion-6.26.0-informational?style=flat-square)
+![Version: 2.10.0](https://img.shields.io/badge/Version-2.10.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.26.1](https://img.shields.io/badge/AppVersion-6.26.1-informational?style=flat-square)
 
 Manifest, the self-hosted LLM gateway, proxy and dashboard.
 
@@ -41,13 +41,13 @@ From the Helm repository:
 ```bash
 helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.9.0
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.10.0
 ```
 
 Or directly from the OCI registry:
 
 ```bash
-helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.9.0
+helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.10.0
 ```
 
 ## Source Code
@@ -181,7 +181,9 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.ollamaHost | string | `""` | Base URL of a locally reachable Ollama or other OpenAI-compatible server (`OLLAMA_HOST`), for example `http://ollama.ai.svc.cluster.local:11434`. Empty by default rather than the compose file's `host.docker.internal`, which does not exist in Kubernetes. |
 | manifest.proxy.codexSemanticOutputTimeoutMs | int | `60000` | Time in ms to wait for deliverable text or tool output from ChatGPT Codex (`CODEX_SEMANTIC_OUTPUT_TIMEOUT_MS`). |
 | manifest.proxy.concurrencyMax | int | `10` | Per-tenant limit of concurrent in-flight requests per backend process (`MANIFEST_CONCURRENCY_MAX`). |
+| manifest.proxy.ipRateMaxRequests | int | `500` | Per-client-IP limit of proxy requests per minute per backend process (`MANIFEST_IP_RATE_MAX_REQUESTS`). Exceeding it answers HTTP 429 with error code M202. |
 | manifest.proxy.providerTimeoutMs | int | `180000` | Per-attempt timeout in ms for upstream provider requests (`PROVIDER_TIMEOUT_MS`). Keep it below your client's timeout so the fallback chain still has room to run. |
+| manifest.proxy.rateMaxRequests | int | `200` | Per-tenant limit of proxy requests per minute per backend process (`MANIFEST_RATE_MAX_REQUESTS`). Exceeding it answers HTTP 429 with error code M201. |
 | manifest.proxy.streamIdleTimeoutMs | int | `180000` | Maximum silence in ms between two chunks of an upstream streaming response before the request fails with HTTP 504 (`STREAM_IDLE_TIMEOUT_MS`). Distinct from `streamWarmupMs`, which only covers the wait for the *first* chunk: raise this one for agent workloads that think for a long time between tokens. |
 | manifest.proxy.streamWarmupMs | int | `15000` | Time in ms to wait for the first chunk of a streaming response before treating it as stalled and failing over (`STREAM_WARMUP_MS`). |
 
@@ -499,7 +501,7 @@ What the chart cannot fix, because it is upstream behaviour:
 | | Effect with `n` replicas |
 | --- | --- |
 | Rate limiting | `THROTTLE_LIMIT` is enforced in memory, per pod. The effective limit is `n ×` the configured value, and a client can draw the full allowance from each pod. |
-| Concurrency cap | `manifest.proxy.concurrencyMax` is per backend process, so the per-tenant ceiling multiplies the same way. |
+| Proxy guardrails | `manifest.proxy.concurrencyMax`, `.rateMaxRequests` and `.ipRateMaxRequests` are per backend process, so the per-tenant and per-IP ceilings multiply the same way. |
 | Threshold alerts | The hourly job checks "already sent?" and then sends, with no lock in between. The same alert can go out more than once. |
 | Dashboard cache | A bounded in-memory LRU per pod, so two replicas can report different figures until the entries expire. Cosmetic. |
 
@@ -537,7 +539,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.9.0
+    targetRevision: 2.10.0
     helm:
       valuesObject:
         manifest:
@@ -591,6 +593,8 @@ in the left column.
 | `STREAM_IDLE_TIMEOUT_MS` | `manifest.proxy.streamIdleTimeoutMs` |
 | `CODEX_SEMANTIC_OUTPUT_TIMEOUT_MS` | `manifest.proxy.codexSemanticOutputTimeoutMs` |
 | `MANIFEST_CONCURRENCY_MAX` | `manifest.proxy.concurrencyMax` |
+| `MANIFEST_RATE_MAX_REQUESTS` | `manifest.proxy.rateMaxRequests` |
+| `MANIFEST_IP_RATE_MAX_REQUESTS` | `manifest.proxy.ipRateMaxRequests` |
 | `OLLAMA_HOST` | `manifest.ollamaHost` |
 | `CREDITS_BASE_URL`, `CREDITS_AUTO_PROVISION_ALLOWLIST`, `CREDITS_GEMINI_FREE_MAX_BUDGET` | `manifest.credits.baseUrl`, `.autoProvisionAllowlist`, `.geminiFreeMaxBudget` |
 | `CREDITS_MASTER_KEY` | `manifest.credits.masterKey` *(secret)* |

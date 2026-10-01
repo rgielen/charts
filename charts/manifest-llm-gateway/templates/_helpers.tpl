@@ -212,6 +212,8 @@ Non-sensitive environment, as `key: "value"` lines for a ConfigMap.
 {{- include "manifest-llm-gateway.put" (list $d "STREAM_IDLE_TIMEOUT_MS" $m.proxy.streamIdleTimeoutMs) }}
 {{- include "manifest-llm-gateway.put" (list $d "CODEX_SEMANTIC_OUTPUT_TIMEOUT_MS" $m.proxy.codexSemanticOutputTimeoutMs) }}
 {{- include "manifest-llm-gateway.put" (list $d "MANIFEST_CONCURRENCY_MAX" $m.proxy.concurrencyMax) }}
+{{- include "manifest-llm-gateway.put" (list $d "MANIFEST_RATE_MAX_REQUESTS" $m.proxy.rateMaxRequests) }}
+{{- include "manifest-llm-gateway.put" (list $d "MANIFEST_IP_RATE_MAX_REQUESTS" $m.proxy.ipRateMaxRequests) }}
 {{- include "manifest-llm-gateway.put" (list $d "OLLAMA_HOST" $m.ollamaHost) }}
 
 {{- include "manifest-llm-gateway.put" (list $d "CREDITS_BASE_URL" $m.credits.baseUrl) }}

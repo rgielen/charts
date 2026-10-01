@@ -442,6 +442,16 @@ manifest:
     # (`MANIFEST_CONCURRENCY_MAX`).
     # @section -- Manifest: LLM proxy
     concurrencyMax: 10
+    # -- Per-tenant limit of proxy requests per minute per backend process
+    # (`MANIFEST_RATE_MAX_REQUESTS`). Exceeding it answers HTTP 429 with error
+    # code M201.
+    # @section -- Manifest: LLM proxy
+    rateMaxRequests: 200
+    # -- Per-client-IP limit of proxy requests per minute per backend process
+    # (`MANIFEST_IP_RATE_MAX_REQUESTS`). Exceeding it answers HTTP 429 with
+    # error code M202.
+    # @section -- Manifest: LLM proxy
+    ipRateMaxRequests: 500
 
   # -- Base URL of a locally reachable Ollama or other OpenAI-compatible server
   # (`OLLAMA_HOST`), for example `http://ollama.ai.svc.cluster.local:11434`.
