@@ -163,7 +163,9 @@
             "streamWarmupMs": { "type": "integer", "minimum": 1 },
             "streamIdleTimeoutMs": { "type": "integer", "minimum": 1 },
             "codexSemanticOutputTimeoutMs": { "type": "integer", "minimum": 1 },
-            "concurrencyMax": { "type": "integer", "minimum": 1 }
+            "concurrencyMax": { "type": "integer", "minimum": 1 },
+            "rateMaxRequests": { "type": "integer", "minimum": 1 },
+            "ipRateMaxRequests": { "type": "integer", "minimum": 1 }
           }
         },
         "recordings": {
