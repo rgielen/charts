@@ -27,6 +27,14 @@ holder. PostgreSQL does not report this as a deadlock and does not break it. So 
 must be the *only* migration runner: hook Job plus `runMigrationsOnBoot: false`, never an
 initContainer per replica.
 
+**Upstream 6.26.0 fixed that hang for `migrate.js`** (mnfst/llm-gateway#2979, after the
+same thing hit their production on 2026-09-23): waiters now poll `pg_try_advisory_lock`
+every 2 s instead of blocking in `pg_advisory_lock`, so no waiter holds a snapshot the index
+build has to wait for. Overlapping hook Jobs are therefore safe from 6.26.0 on. Nothing
+changed for the boot path — it still takes no lock, so the chart's refusal of
+`runMigrationsOnBoot` with several replicas stands; only its explanation was re-anchored
+(chart 2.9.0). Whether concurrent boot-path runs hang or merely collide was not tested.
+
 **Path 2 — Better Auth migrations.**
 `DatabaseSeederService.runBetterAuthMigrations` creates Better Auth's tables through kysely
 on module init. No lock, no CLI, so the Job cannot cover it. On a first install with more
