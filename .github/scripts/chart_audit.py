@@ -6,10 +6,11 @@ Two kinds of drift are invisible to a file diff and to `helm lint`:
 1. The chart and its own documentation disagree -- a value is emitted but never
    appears in the environment-variable mapping table, or the table names a
    setting the chart stopped emitting.
-2. The upstream reads a setting the chart has never modelled. Neither
-   `.env.example` is complete: `MIGRATION_DATABASE_URL` appears in neither, and
-   `packages/backend/src/config/app.config.ts` is the only authoritative list of
-   what the application actually reads.
+2. The upstream reads a setting the chart has never modelled. No single file
+   lists them all: `MIGRATION_DATABASE_URL` appears in neither `.env.example`,
+   and `MANIFEST_RATE_MAX_REQUESTS` is read in the proxy's rate limiter, not in
+   `app.config.ts`. The documented sources are read first; the source tree is
+   then scanned for every `process.env` read they do not account for.
 
 This reports both, plus the image assumptions the chart is built on -- the
 migration Job runs a hardcoded path inside the image, the Helm test pod assumes
@@ -23,10 +24,14 @@ and telling those apart is the reviewing half of `/analyze-upstream`.
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import re
 import subprocess
 import sys
+import tarfile
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -38,7 +43,16 @@ from upstream_sync import read_chart  # noqa: E402
 # chart without this annotation gets "not checked", not "nothing found".
 ANNOTATION_CONFIG_SOURCES = "charts.rgielen.de/upstream-config-sources"
 
+# The directories whose code runs in the image. Scanning the whole repository
+# instead would mix in the frontend's build-time variables and CI scripts, none
+# of which a deployment can set; a chart without the annotation gets "not
+# checked" for the same reason as above.
+ANNOTATION_SOURCE_ROOTS = "charts.rgielen.de/upstream-source-roots"
+
 ENV_NAME = r"[A-Z][A-Z0-9_]{2,}"
+
+SOURCE_SUFFIXES = (".ts", ".js", ".mjs", ".cjs")
+TEST_PATH = re.compile(r"\.(spec|test|e2e-spec)\.[cm]?[jt]s$|/(__tests__|test|tests|e2e)/")
 
 
 def emitted_env(helpers: str) -> set[str]:
@@ -67,10 +81,54 @@ def upstream_env(sources: dict[str, str]) -> dict[str, set[str]]:
         if path.endswith(".env.example"):
             names = set(re.findall(rf"^#?\s*({ENV_NAME})=", text, re.MULTILINE))
         else:
-            names = set(re.findall(rf"env\[['\"]({ENV_NAME})['\"]\]", text))
-            names |= set(re.findall(rf"process\.env\.({ENV_NAME})\b", text))
+            names = env_reads(text)
         found[path] = names
     return found
+
+
+def env_reads(text: str) -> set[str]:
+    """`process.env.NAME` and `process.env['NAME']`, the two shapes the upstream uses."""
+    names = set(re.findall(rf"env\[['\"]({ENV_NAME})['\"]\]", text))
+    names |= set(re.findall(rf"process\.env\.({ENV_NAME})\b", text))
+    return names
+
+
+def source_env(repo: str, commit: str, roots: list[str]) -> dict[str, list[str]]:
+    """Every environment variable read under `roots`, with the files reading it.
+
+    One tarball rather than a file at a time: the tree has thousands of files,
+    and the contents API that would list them is rate-limited without a token.
+    Tests are left out -- they set variables to exercise code, not to configure
+    it.
+    """
+    url = f"https://codeload.github.com/{repo}/tar.gz/{commit}"
+    request = urllib.request.Request(url, headers={"User-Agent": "rgielen-charts-chart-audit"})
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            archive = response.read()
+    except urllib.error.HTTPError as err:
+        raise Unknown(f"GET {url} returned {err.code}") from err
+    except OSError as err:
+        raise Unknown(f"GET {url} failed: {err}") from err
+
+    prefixes = tuple(root.strip("/") + "/" for root in roots)
+    found: dict[str, set[str]] = {}
+    with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as tar:
+        for member in tar:
+            # Every entry sits under one `<repo>-<commit>/` directory.
+            path = member.name.split("/", 1)[-1]
+            if not (
+                member.isfile()
+                and path.startswith(prefixes)
+                and path.endswith(SOURCE_SUFFIXES)
+                and "/node_modules/" not in path
+                and not TEST_PATH.search(path)
+            ):
+                continue
+            text = tar.extractfile(member).read().decode("utf-8", errors="replace")
+            for name in env_reads(text):
+                found.setdefault(name, set()).add(path)
+    return {name: sorted(paths) for name, paths in found.items()}
 
 
 def schema_enums(schema: dict) -> dict[str, list]:
@@ -195,6 +253,7 @@ def audit(chart_dir: Path, tag: str | None, skip_image: bool) -> dict:
         "schema_enums": schema_enums(schema),
         "upstream": {},
         "upstream_unmodelled": [],
+        "source_only": {},
         "image_contract": [],
         "errors": [],
     }
@@ -218,6 +277,23 @@ def audit(chart_dir: Path, tag: str | None, skip_image: bool) -> dict:
         found = upstream_env(sources)
         report["upstream"] = {path: sorted(names) for path, names in found.items()}
         every = set().union(*found.values()) if found else set()
+
+        roots = [p.strip() for p in chart.get(ANNOTATION_SOURCE_ROOTS, "").split(",") if p.strip()]
+        if not roots:
+            report["errors"].append(
+                f"{chart_dir.name} has no {ANNOTATION_SOURCE_ROOTS} annotation, "
+                "so settings read outside the documented sources were not checked"
+            )
+        else:
+            try:
+                in_source = source_env(repo, commit, roots)
+            except Unknown as err:
+                report["errors"].append(str(err))
+            else:
+                report["source_only"] = {
+                    name: paths for name, paths in sorted(in_source.items()) if name not in every
+                }
+                every |= set(in_source)
         report["upstream_unmodelled"] = sorted(every - emitted - documented)
     except Unknown as err:
         report["errors"].append(str(err))
@@ -272,6 +348,19 @@ def markdown(report: dict) -> str:
         "Not automatically a gap: some of these are cloud-only or legacy. Each one is a decision "
         "that has not been made, and the reasoning belongs in the chart once it has.",
     )
+
+    unmodelled = set(report["upstream_unmodelled"])
+    hidden = {n: p for n, p in report["source_only"].items() if n in unmodelled}
+    if hidden:
+        lines.append("**Of those, read in code but listed in no documented source**")
+        lines.append("")
+        for name, paths in hidden.items():
+            lines.append(f"- `{name}` — {', '.join(f'`{p}`' for p in paths)}")
+        lines.append("")
+        lines.append(
+            "_Where the upstream reads it is the only documentation there is; start there._"
+        )
+        lines.append("")
 
     if report["schema_enums"]:
         lines.append("**Schema enums to check against the upstream**")
