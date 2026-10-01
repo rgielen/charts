@@ -617,11 +617,13 @@ manifest:
 
   # -- Also apply migrations when the application boots
   # (`RUN_MIGRATIONS_ON_BOOT`). Off, because `migrations.job` already did it.
-  # Turning it on with more than one replica is refused: the boot path does not
-  # take the advisory lock the Job's entry point takes, and several pending
-  # migrations are a `CREATE INDEX CONCURRENTLY` that waits for the other
-  # replicas' sessions while those wait for the lock — a cycle PostgreSQL does
-  # not detect and does not break.
+  # Turning it on with more than one replica is refused: the boot path takes
+  # no lock at all, unlike the Job's entry point, so every replica applies the
+  # same pending migrations at once — and several of them are a
+  # `CREATE INDEX CONCURRENTLY` that waits for every other session on the table.
+  # Concurrent runners hung indefinitely on exactly those builds before
+  # appVersion 6.26.0 even with the lock; the upstream's fix covers the Job's
+  # entry point only.
   # @section -- Manifest: operations
   runMigrationsOnBoot: false
 

@@ -10,7 +10,7 @@
 - [Charts start at 1.0.0](charts-start-at-1-0-0.md) — no 0.x phase; a pinned targetRevision deserves a stable values interface
 - [renovate.json has no comments](renovate-json-has-no-comments.md) — a `_comment_*` key is an invalid option and stops every Renovate PR; use `description`
 - [OPEN: follow-ups](open-followups.md) — one item left: the inotify limits on the workstation may not survive a reboot
-- [Manifest migration paths](manifest-migration-paths.md) — two paths, one lock, one CLI; concurrent migrate.js runs deadlock on CREATE INDEX CONCURRENTLY
+- [Manifest migration paths](manifest-migration-paths.md) — two paths, one lock, one CLI; concurrent migrate.js runs deadlocked on CREATE INDEX CONCURRENTLY until upstream 6.26.0; the boot path still has no lock
 - [Both layers of the drift check are built](upstream-drift-layer-2-planned.md) — layer 2 invokes the /analyze-upstream skill; escalate-only is a property of the job graph
 - [Local chart toolchain is missing](local-chart-toolchain-missing.md) — no crane, helm-docs or ct here; fetch the CI-pinned versions into the scratchpad, ct needs yamale, yamllint and its own etc/, and helm 4 has no `template --notes`
 - [The /analyze-upstream skill](analyze-upstream-skill.md) — interactive companion to the CI drift check, and the intended implementation of layer 2

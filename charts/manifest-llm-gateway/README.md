@@ -146,7 +146,7 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.migrations.job.podAnnotations | object | `{}` | Extra annotations for the migration pod. |
 | manifest.migrations.job.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | Resource requests and limits for the migration pod. |
 | manifest.migrations.job.serviceAccountName | string | `""` | Service account for the migration pod. Empty uses `default`, because the chart's own service account does not exist yet when a `pre-install` hook runs. Point this at a pre-existing account when the migration pod needs an identity of its own — a cloud workload identity for a managed database, say. When `serviceAccount.create` is false, the configured account already exists and is used automatically. |
-| manifest.runMigrationsOnBoot | bool | `false` | Also apply migrations when the application boots (`RUN_MIGRATIONS_ON_BOOT`). Off, because `migrations.job` already did it. Turning it on with more than one replica is refused: the boot path does not take the advisory lock the Job's entry point takes, and several pending migrations are a `CREATE INDEX CONCURRENTLY` that waits for the other replicas' sessions while those wait for the lock — a cycle PostgreSQL does not detect and does not break. |
+| manifest.runMigrationsOnBoot | bool | `false` | Also apply migrations when the application boots (`RUN_MIGRATIONS_ON_BOOT`). Off, because `migrations.job` already did it. Turning it on with more than one replica is refused: the boot path takes no lock at all, unlike the Job's entry point, so every replica applies the same pending migrations at once — and several of them are a `CREATE INDEX CONCURRENTLY` that waits for every other session on the table. Concurrent runners hung indefinitely on exactly those builds before appVersion 6.26.0 even with the lock; the upstream's fix covers the Job's entry point only. |
 | manifest.shutdownDrainMs | int | `10000` | Grace period in ms to finish in-flight requests after SIGTERM (`SHUTDOWN_DRAIN_MS`). Keep `terminationGracePeriodSeconds` above it. |
 | manifest.throttle.limit | int | `100` | Maximum requests per window per client (`THROTTLE_LIMIT`). |
 | manifest.throttle.ttl | int | `60000` | Rate limit window in ms (`THROTTLE_TTL`). |
@@ -438,11 +438,14 @@ resources exist, and on upgrade the release's copies still hold the previous val
 more than one replica is refused outright, and that is not caution:
 
 > The boot path applies migrations without the advisory lock the migration entry point
-> takes. Several pending migrations are a `CREATE INDEX CONCURRENTLY`, which waits for every
-> other session that can see the table — including the replicas blocked on the advisory
-> lock, which are waiting for the holder, which is waiting for the index. PostgreSQL does
-> not recognise this as a deadlock and does not break it. Observed hanging indefinitely
-> with three concurrent runners against an empty database.
+> takes — no lock at all — so every replica runs the same pending migrations at the same
+> time, and several of them are a `CREATE INDEX CONCURRENTLY`, which waits for every other
+> session that can see the table. How badly concurrent index builds go wrong was observed
+> before appVersion 6.26.0, even *with* the lock: three concurrent runners against an empty
+> database hung indefinitely, the holder's index build waiting on the runners blocked on
+> the lock, a cycle PostgreSQL neither recognises nor breaks. Upstream 6.26.0 fixed that
+> for the migration entry point only — its waiters now poll for the lock instead of
+> blocking — and the boot path still has nothing to wait on.
 
 If `manifest.database.url` points at a transaction pooler such as PgBouncer, set
 `manifest.database.migrationUrl` to a direct connection. The advisory lock is
@@ -628,7 +631,7 @@ The upstream reads these and this chart does not expose them. They are decisions
 | `PLUGIN_OTLP_ENDPOINT` | Documented in the upstream's `.env.example` but read nowhere in the server. |
 | `ERROR_PAGE_PUSH_SECRET` | Gates an internal endpoint for publishing curated error pages. Empty rejects every write, which is the right state for a self-hosted install. |
 | `CRM_METRICS_SECRET` | Guards `/api/v1/internal/crm-metrics`, the feed the hosted service's outreach CRM polls. Cloud-only, and the upstream counts anything shorter than 32 characters as unset, so leaving it empty keeps the route shut — which is what you want from an endpoint that exports user email addresses across tenants. |
-| `MANIFEST_PUBLIC_STATS` | Exposes aggregate `/api/v1/public/*` endpoints **without authentication**. The upstream marks it as being for its own marketing site. |
+| `MANIFEST_PUBLIC_STATS` | Serves the published error pages at `/api/v1/public/error-pages` **without authentication**, for the upstream's own marketing site. The name is historical: since appVersion 6.26.0 the aggregate usage stats it once exposed are gone, and the upstream kept the variable so its existing deployments stay on. |
 | `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `NOTIFICATION_FROM_EMAIL` | Legacy fallbacks superseded by the `EMAIL_*` settings above. Modelling both invites a configuration that contradicts itself. |
 | `BIND_ADDRESS`, `NODE_ENV` | Already set inside the image. Overriding them only adds a way to break the deployment. |
 | `CORS_ORIGIN`, `FRONTEND_PORT`, `MANIFEST_FRONTEND_DIR`, `MANIFEST_EMBEDDED` | Development-only; inert in a production image. |

@@ -137,7 +137,7 @@ worse -- making every stored provider credential undecryptable.
 {{- fail "manifest-llm-gateway: nothing would apply database migrations. Enable manifest.migrations.job.enabled, or set manifest.runMigrationsOnBoot=true, or apply them yourself and knowingly set both to false only after removing this guard." }}
 {{- end }}
 {{- if and (gt (int .Values.replicaCount) 1) .Values.manifest.runMigrationsOnBoot }}
-{{- fail "manifest-llm-gateway: replicaCount > 1 with manifest.runMigrationsOnBoot=true will hang the rollout, not just race. The boot path applies migrations without the advisory lock the upstream's migration entry point takes, and one of the pending migrations is a CREATE INDEX CONCURRENTLY -- which waits for the other replicas' sessions, while those wait for the lock. Nothing breaks the cycle. Use the migration Job (manifest.migrations.job.enabled=true, the default) and leave runMigrationsOnBoot=false." }}
+{{- fail "manifest-llm-gateway: replicaCount > 1 with manifest.runMigrationsOnBoot=true runs the same migrations in every replica at once. The boot path takes no lock at all, unlike the upstream's migration entry point, and several pending migrations are a CREATE INDEX CONCURRENTLY -- which waits for every other session on the table; concurrent runners hung indefinitely on those builds even with the lock until the upstream fixed it, for its entry point only. Use the migration Job (manifest.migrations.job.enabled=true, the default) and leave runMigrationsOnBoot=false." }}
 {{- end }}
 {{/*
   Plain http on a non-loopback publicUrl is deliberately *not* refused any more.
