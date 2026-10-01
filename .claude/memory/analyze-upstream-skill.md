@@ -33,8 +33,11 @@ Two consequences worth remembering:
 
 **Why:** the drift worth catching is invisible to a file diff — a default the upstream
 moved under a value the chart pins, a schema enum the upstream outgrew, a setting read
-only in `app.config.ts`. See [[manifest-migration-paths]] for the upstream facts it
-calibrates against.
+only in code. `app.config.ts` is not the complete list it was taken for: 6.26.1's
+`MANIFEST_RATE_MAX_REQUESTS` is read in the proxy's rate limiter, and the first source
+scan (`charts.rgielen.de/upstream-source-roots`, 2026-10-01) found 16 more such reads,
+`TRUST_PROXY` and `DATABASE_UNPOOLED_URL` among them. See [[manifest-migration-paths]]
+for the upstream facts it calibrates against.
 
 **How to apply:** run `/analyze-upstream --audit` when touching this chart. Its first real
 run found 21 upstream settings the chart models nowhere; most are cloud-only or

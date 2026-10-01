@@ -1,6 +1,6 @@
 ---
 name: open-followups
-description: "OPEN: one item left, the inotify limits on the workstation; the other three closed on 2026-09-02"
+description: "OPEN: the inotify limits on the workstation, and the drift check still blind to settings read only in code (2026-10-01)"
 metadata:
   type: project
 ---
@@ -37,6 +37,18 @@ printf 'fs.inotify.max_user_instances = 512\nfs.inotify.max_user_watches = 52428
   | sudo tee /etc/sysctl.d/99-inotify.conf
 sudo sysctl --system
 ```
+
+**5. The drift check still cannot see a setting read only in code.** Since 2026-10-01
+`chart_audit.py` scans `charts.rgielen.de/upstream-source-roots` for `process.env` reads,
+but the audit only runs in the `review` job, and that job only runs on a pull request
+`upstream_diff.py` already held. `upstream_diff.py` compares the `-watch-paths` files
+alone. An upstream release that adds a variable in a service file, and touches none of
+those files, comes back `clean` and merges unattended. 6.26.1 was caught only because the
+upstream also edited both `.env.example` files. Closing this means having the drift check
+compare the env-read set at both commits and answer `review` when it grows. That changes
+what gets merged unattended, so it needs a decision first. Separately, the first scan
+listed 16 such settings for `manifest-llm-gateway` that nobody has classified yet;
+`TRUST_PROXY` and `DATABASE_UNPOOLED_URL` are the operational ones.
 
 **A scheduled routine checks this file.** `rgielen/charts — open follow-ups`
 (`trig_01GGA4bUnenMByUoaKa6TeYF`, Mondays 07:00 UTC,

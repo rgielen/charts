@@ -29,7 +29,13 @@ motivating case — look for it first.**
 is read by `packages/backend/src/database/datasource.ts` and appears in neither
 `.env.example`. It matters: the migration entry point takes a *session*-scoped
 advisory lock, which a transaction pooler does not preserve. Found only by reading
-the source. `app.config.ts` is the authoritative list, not the examples.
+the source. Neither is `app.config.ts` a complete list: until 6.26.1 the proxy's
+rate limits were constants in `proxy-rate-limiter.ts`, and when they became
+`MANIFEST_RATE_MAX_REQUESTS` and `MANIFEST_IP_RATE_MAX_REQUESTS` they were read
+there, not in the config file. `chart_audit.py` therefore scans the
+`upstream-source-roots` for every `process.env` read and lists the ones no
+documented source accounts for, with the file that reads each. That file is the
+only documentation such a setting has; read it before classifying.
 
 **Behaviour with no configuration surface at all.** Better Auth's tables are
 created on module init through a separate, unlocked code path with no CLI, so a

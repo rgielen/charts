@@ -60,6 +60,12 @@ python3 .github/scripts/chart_audit.py charts/<name> --markdown-out /tmp/audit.m
 `chart_audit.py` downloads the image layers for the contract checks; pass
 `--skip-image` only if that fails, and then say the contract was not checked.
 
+It also downloads the upstream source at the image's commit and scans the
+chart's `upstream-source-roots` for environment reads. When it reports that
+annotation missing or the download failed, the "modelled nowhere" list covers
+the documented sources only, and the assessment is `uncertain`, not
+`no_chart_impact`.
+
 A failed image-contract check is the most serious finding this skill can produce.
 The chart runs `packages/backend/dist/database/migrate.js` by path, pins
 `runAsUser: 65532`, probes `/api/v1/health`, and its Helm test pod exists because
