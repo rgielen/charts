@@ -47,7 +47,7 @@ jobs:
       # `check-latest: true` is what broke this workflow once already -- Python
       # 3.14 removed `ast.Num`, which the yamale version bundled with ct 3.12
       # still used, so an unrelated upstream release turned every run red.
-      - uses: helm/chart-testing-action@v2.8.0
+      - uses: helm/chart-testing-action@v2.9.0
 
       - name: Detect changed charts
         id: list-changed
