@@ -61,7 +61,10 @@ on `main` by hand (2.10.0, 2.11.0) and #62 was closed. The fix: when an
 `upstream/<chart>-*` pull request is already open, the sync should move that branch to the
 new tag, recut from current `main`, and retitle it. It should not open another. Today the
 existence check at `upstream-sync.yaml` (`git ls-remote ... "$branch"`) only matches the
-exact tag, so it never notices the older branch. Until this is fixed: **before merging an
+exact tag, so it never notices the older branch. It recurred with #78 (6.29.0, opened 2026-11-05): an unrelated Renovate bump (#71, curl) shipped
+2.11.9 while it was held, so #78 conflicted at 2.12.0; 6.29.1 appeared before anyone looked,
+so #78 was closed and 6.29.1 built by hand on the same branch scheme, which also makes the
+nightly sync skip that tag. Until this is fixed: **before merging an
 `upstream/*` pull request, check that its `Chart.yaml` `version` is above the last
 published one and that it is not `DIRTY`.**
 
