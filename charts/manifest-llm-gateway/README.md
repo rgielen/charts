@@ -1,6 +1,6 @@
 # manifest-llm-gateway
 
-![Version: 2.11.9](https://img.shields.io/badge/Version-2.11.9-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.28.6](https://img.shields.io/badge/AppVersion-6.28.6-informational?style=flat-square)
+![Version: 2.11.9](https://img.shields.io/badge/Version-2.11.9-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.28.11](https://img.shields.io/badge/AppVersion-6.28.11-informational?style=flat-square)
 
 Manifest, the self-hosted LLM gateway, proxy and dashboard.
 
