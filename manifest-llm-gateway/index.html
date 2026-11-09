@@ -22,7 +22,7 @@
 <p class="crumbs"><a href="../">Charts</a> <span>/</span> manifest-llm-gateway</p>
 <h1>manifest-llm-gateway</h1>
 <p class="lede">Manifest, the self-hosted LLM gateway, proxy and dashboard.</p>
-<p class="badges"><span class="badge"><span>Chart</span><b>2.11.9</b></span><span class="badge"><span>App</span><b>6.28.11</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
+<p class="badges"><span class="badge"><span>Chart</span><b>2.12.0</b></span><span class="badge"><span>App</span><b>6.29.1</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
 <p class="page-links"><a href="https://manifest.build">manifest.build</a></p>
 
 <div class="layout">
@@ -57,10 +57,10 @@ Kubernetes.</p>
 <p>From the Helm repository:</p>
 <pre><code class="language-bash">helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.11.9
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.12.0
 </code></pre>
 <p>Or directly from the OCI registry:</p>
-<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.11.9
+<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.12.0
 </code></pre>
 <h2 id="source-code">Source Code<a class="anchor" href="#source-code" title="Permanent link">#</a></h2>
 <ul>
@@ -888,9 +888,9 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.11
 </tr>
 <tr>
 <td>manifest.recordings.retentionDays</td>
-<td>string</td>
-<td><code>""</code></td>
-<td>Retention in days (<code>REQUEST_RECORDING_RETENTION_DAYS</code>). The application defaults to 365 for self-hosted installations.</td>
+<td>int</td>
+<td><code>365</code></td>
+<td>Recordings older than this many days are deleted (<code>REQUEST_RECORDING_RETENTION_DAYS</code>). Pinned here because the upstream kept 365 days until 6.29.1 and deletes nothing by default since, and a volume that only grows eventually fills up. Empty keeps every recording forever. Ignored when <code>manifest.mode</code> is <code>cloud</code>.</td>
 </tr>
 <tr>
 <td>manifest.recordings.s3.accessKeyId</td>
@@ -1101,8 +1101,9 @@ an error — the damage is silent. Rotate in three steps instead:</p>
    the old key readable — and mounted in the Secret — indefinitely.</li>
 </ol>
 <p>Recording <em>bodies</em> are the exception: they are encrypted with the same key but are not
-rewritten, so a rotation makes existing ones unreadable and retention eventually removes
-them. Metadata in the database is unaffected.</p>
+rewritten, so a rotation makes existing ones unreadable. They stay in storage until
+<code>manifest.recordings.retentionDays</code> removes them — never, if you emptied it. Metadata in
+the database is unaffected.</p>
 <h2 id="reverse-proxy-and-publicurl">Reverse proxy and <code>publicUrl</code><a class="anchor" href="#reverse-proxy-and-publicurl" title="Permanent link">#</a></h2>
 <p><code>manifest.publicUrl</code> becomes <code>BETTER_AUTH_URL</code> and must match the URL the browser actually
 uses, or logins and OAuth callbacks fail in ways that look like unrelated bugs. When an
@@ -1179,8 +1180,10 @@ optional, and go to one of two places:</p>
 <li><strong>S3-compatible storage</strong>, via <code>manifest.recordings.s3</code>. A complete S3 configuration
   takes precedence over the volume while <code>manifest.recordings.storage</code> is <code>auto</code>.</li>
 </ul>
-<p>Retention defaults to 365 days upstream; override with
-<code>manifest.recordings.retentionDays</code>.</p>
+<p><code>manifest.recordings.retentionDays</code> deletes recordings older than that many days and
+defaults to 365. The upstream itself kept 365 days until 6.29.1 and keeps everything
+forever since, so this chart pins the old value rather than let a volume grow without
+bound underneath an unchanged configuration. Set it to <code>""</code> to keep every recording.</p>
 <p>Bodies are encrypted at rest with <code>manifest.auth.encryptionKey</code> as of upstream 6.21.0
 (recordings written before that stay readable). Unlike stored credentials they are not
 rewritten during a key rotation, so see <em>Rotating the encryption key</em> above before
@@ -1298,7 +1301,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.11.9
+    targetRevision: 2.12.0
     helm:
       valuesObject:
         manifest:
@@ -1567,6 +1570,10 @@ in the left column.</p>
 <td>Both override <em>where the dashboard reads</em> agent usage from during the staged cutover to the daily rollups — the first forces rollups or raw queries globally, the second names the tenant IDs allowed to read rollups first. The automatic default already waits for the backfill to reach parity before switching, and a self-hosted install has one tenant and no rollout to stage. <code>manifest.agentUsage.dailyWorker</code> covers the part that is operational here: whether the rollup is written at all.</td>
 </tr>
 <tr>
+<td><code>BEDROCK_RUNTIME_CHAT_VIA_RESPONSES</code></td>
+<td>A kill switch for a routing change in upstream 6.29.0: Bedrock GPT chat requests with function tools and reasoning, and GPT-6 Astra chat requests with function tools, go to the Bedrock Runtime Responses API instead of Runtime Chat Completions, which rejects them. On by default, and only the exact string <code>false</code> turns it off. A switch like this tends to disappear once the new path has settled, and a values key for it would outlive it under a pinned <code>targetRevision</code>. If you need it, set it through <code>extraEnv</code>.</td>
+</tr>
+<tr>
 <td><code>PLUGIN_OTLP_ENDPOINT</code></td>
 <td>Documented in the upstream's <code>.env.example</code> but read nowhere in the server.</td>
 </tr>
@@ -1638,6 +1645,13 @@ re-released with different content.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.12.0"><code>2.12.0</code></a></td>
+<td><code>6.29.1</code></td>
+<td>2026-11-09</td>
+<td><a href="https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.12.0/manifest-llm-gateway-2.12.0.tgz"><code>.tgz</code></a></td>
+<td><code>8127374e096f1ec209f…</code></td>
+</tr>
 <tr>
 <td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.11.9"><code>2.11.9</code></a></td>
 <td><code>6.28.11</code></td>
@@ -1901,7 +1915,7 @@ unattended only when the bump is not a major one and the diff is clean.</p>
 </tr>
 <tr>
 <td>Release notes</td>
-<td><a href="https://github.com/mnfst/llm-gateway/releases/tag/manifest@6.28.11">manifest@6.28.11</a> — not every image tag has one</td>
+<td><a href="https://github.com/mnfst/llm-gateway/releases/tag/manifest@6.29.1">manifest@6.29.1</a> — not every image tag has one</td>
 </tr>
 <tr>
 <td>Watched files</td>
