@@ -174,7 +174,7 @@
             "storage": { "enum": ["auto", "filesystem", "s3"] },
             "filesystemPath": { "type": "string", "pattern": "^/" },
             "retentionDays": {
-              "description": "Empty for the upstream default of 365 days.",
+              "description": "Days after which recordings are deleted. Empty keeps them forever, the upstream default since 6.29.1.",
               "oneOf": [
                 { "type": "string", "pattern": "^$|^[0-9]+$" },
                 { "type": "integer", "minimum": 1 }

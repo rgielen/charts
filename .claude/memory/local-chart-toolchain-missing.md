@@ -18,8 +18,8 @@ different problem:
 - **`helm-docs`** — `regenerate-readmes.sh` exits with `command not found`.
 - **`ct`** — not installed at all.
 
-What works, without installing anything system-wide (versions as of 2026-09-06; take them
-from CI, so that a local pass means the same thing as a CI pass):
+What works, without installing anything system-wide (versions as of 2026-11-09 — ct 3.15.0 since
+chart-testing-action v2.9.0; take them from CI, so that a local pass means the same thing as a CI pass):
 
 ```bash
 SP=<scratchpad>; mkdir -p "$SP/bin"
@@ -29,7 +29,7 @@ curl -sSfL https://github.com/norwoodj/helm-docs/releases/download/v1.14.2/helm-
 # ct runs fine from its own tarball -- no container needed -- but it needs three things
 # the release does not carry: yamale and yamllint on PATH, and the two config files it
 # would otherwise look for under /etc/ct/. They are in the tarball's own etc/.
-curl -sSfL https://github.com/helm/chart-testing/releases/download/v3.14.0/chart-testing_3.14.0_linux_amd64.tar.gz | tar -xz -C "$SP"
+curl -sSfL https://github.com/helm/chart-testing/releases/download/v3.15.0/chart-testing_3.15.0_linux_amd64.tar.gz | tar -xz -C "$SP"
 python3 -m venv "$SP/venv" && "$SP/venv/bin/pip" -q install yamale==6.0.0 yamllint==1.33.0
 
 export PATH="$SP:$SP/bin:$SP/venv/bin:$PATH"

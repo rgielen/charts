@@ -487,10 +487,13 @@ manifest:
     # (`REQUEST_RECORDING_FILESYSTEM_PATH`). Backed by `persistence` above.
     # @section -- Manifest: request recordings
     filesystemPath: /data/request-recordings
-    # -- Retention in days (`REQUEST_RECORDING_RETENTION_DAYS`). The application
-    # defaults to 365 for self-hosted installations.
+    # -- Recordings older than this many days are deleted
+    # (`REQUEST_RECORDING_RETENTION_DAYS`). Pinned here because the upstream
+    # kept 365 days until 6.29.1 and deletes nothing by default since, and a
+    # volume that only grows eventually fills up. Empty keeps every recording
+    # forever. Ignored when `manifest.mode` is `cloud`.
     # @section -- Manifest: request recordings
-    retentionDays: ""
+    retentionDays: 365
     s3:
       # -- Bucket name (`REQUEST_RECORDING_S3_BUCKET`).
       # @section -- Manifest: request recordings

@@ -1,6 +1,6 @@
 # manifest-llm-gateway
 
-![Version: 2.11.9](https://img.shields.io/badge/Version-2.11.9-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.28.11](https://img.shields.io/badge/AppVersion-6.28.11-informational?style=flat-square)
+![Version: 2.12.0](https://img.shields.io/badge/Version-2.12.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.29.1](https://img.shields.io/badge/AppVersion-6.29.1-informational?style=flat-square)
 
 Manifest, the self-hosted LLM gateway, proxy and dashboard.
 
@@ -41,13 +41,13 @@ From the Helm repository:
 ```bash
 helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.11.9
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.12.0
 ```
 
 Or directly from the OCI registry:
 
 ```bash
-helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.11.9
+helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.12.0
 ```
 
 ## Source Code
@@ -221,7 +221,7 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | manifest.recordings.filesystemPath | string | `"/data/request-recordings"` | Mount path for locally stored recordings (`REQUEST_RECORDING_FILESYSTEM_PATH`). Backed by `persistence` above. |
-| manifest.recordings.retentionDays | string | `""` | Retention in days (`REQUEST_RECORDING_RETENTION_DAYS`). The application defaults to 365 for self-hosted installations. |
+| manifest.recordings.retentionDays | int | `365` | Recordings older than this many days are deleted (`REQUEST_RECORDING_RETENTION_DAYS`). Pinned here because the upstream kept 365 days until 6.29.1 and deletes nothing by default since, and a volume that only grows eventually fills up. Empty keeps every recording forever. Ignored when `manifest.mode` is `cloud`. |
 | manifest.recordings.s3.accessKeyId | string | `""` | Access key ID (`REQUEST_RECORDING_S3_ACCESS_KEY_ID`). |
 | manifest.recordings.s3.bucket | string | `""` | Bucket name (`REQUEST_RECORDING_S3_BUCKET`). |
 | manifest.recordings.s3.endpoint | string | `""` | Endpoint for S3-compatible storage (`REQUEST_RECORDING_S3_ENDPOINT`). |
@@ -324,8 +324,9 @@ an error — the damage is silent. Rotate in three steps instead:
    the old key readable — and mounted in the Secret — indefinitely.
 
 Recording *bodies* are the exception: they are encrypted with the same key but are not
-rewritten, so a rotation makes existing ones unreadable and retention eventually removes
-them. Metadata in the database is unaffected.
+rewritten, so a rotation makes existing ones unreadable. They stay in storage until
+`manifest.recordings.retentionDays` removes them — never, if you emptied it. Metadata in
+the database is unaffected.
 
 ## Reverse proxy and `publicUrl`
 
@@ -419,8 +420,10 @@ optional, and go to one of two places:
 - **S3-compatible storage**, via `manifest.recordings.s3`. A complete S3 configuration
   takes precedence over the volume while `manifest.recordings.storage` is `auto`.
 
-Retention defaults to 365 days upstream; override with
-`manifest.recordings.retentionDays`.
+`manifest.recordings.retentionDays` deletes recordings older than that many days and
+defaults to 365. The upstream itself kept 365 days until 6.29.1 and keeps everything
+forever since, so this chart pins the old value rather than let a volume grow without
+bound underneath an unchanged configuration. Set it to `""` to keep every recording.
 
 Bodies are encrypted at rest with `manifest.auth.encryptionKey` as of upstream 6.21.0
 (recordings written before that stay readable). Unlike stored credentials they are not
@@ -539,7 +542,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.11.9
+    targetRevision: 2.12.0
     helm:
       valuesObject:
         manifest:
@@ -632,6 +635,7 @@ The upstream reads these and this chart does not expose them. They are decisions
 | ------- | ------- |
 | `BACKFILL_DATABASE_URL` | The third fallback after `MIGRATION_DATABASE_URL`, which `manifest.database.migrationUrl` already sets, so the backfill resolver is already satisfied. Cloud-only besides. |
 | `AGENT_USAGE_DAILY_READS`, `AGENT_USAGE_DAILY_READ_TENANTS` | Both override *where the dashboard reads* agent usage from during the staged cutover to the daily rollups — the first forces rollups or raw queries globally, the second names the tenant IDs allowed to read rollups first. The automatic default already waits for the backfill to reach parity before switching, and a self-hosted install has one tenant and no rollout to stage. `manifest.agentUsage.dailyWorker` covers the part that is operational here: whether the rollup is written at all. |
+| `BEDROCK_RUNTIME_CHAT_VIA_RESPONSES` | A kill switch for a routing change in upstream 6.29.0: Bedrock GPT chat requests with function tools and reasoning, and GPT-6 Astra chat requests with function tools, go to the Bedrock Runtime Responses API instead of Runtime Chat Completions, which rejects them. On by default, and only the exact string `false` turns it off. A switch like this tends to disappear once the new path has settled, and a values key for it would outlive it under a pinned `targetRevision`. If you need it, set it through `extraEnv`. |
 | `PLUGIN_OTLP_ENDPOINT` | Documented in the upstream's `.env.example` but read nowhere in the server. |
 | `ERROR_PAGE_PUSH_SECRET` | Gates an internal endpoint for publishing curated error pages. Empty rejects every write, which is the right state for a self-hosted install. |
 | `CRM_METRICS_SECRET` | Guards `/api/v1/internal/crm-metrics`, the feed the hosted service's outreach CRM polls. Cloud-only, and the upstream counts anything shorter than 32 characters as unset, so leaving it empty keeps the route shut — which is what you want from an endpoint that exports user email addresses across tenants. |
