@@ -9,6 +9,39 @@ entries:
       charts.rgielen.de/upstream-tag-pattern: ^[0-9]+\.[0-9]+\.[0-9]+$
       charts.rgielen.de/upstream-watch-paths: docker/.env.example,docker/docker-compose.yml,packages/backend/.env.example,packages/backend/src/config/app.config.ts
     apiVersion: v2
+    appVersion: 6.29.1
+    created: "2026-11-09T10:40:11.935367898Z"
+    description: Manifest, the self-hosted LLM gateway, proxy and dashboard.
+    digest: 8127374e096f1ec209f2588e33c0436d13de5b0189068bb099746969676d48db
+    home: https://manifest.build
+    icon: https://manifest.build/images/favicon.png
+    keywords:
+    - llm
+    - gateway
+    - proxy
+    - openai
+    - anthropic
+    - ollama
+    - ai
+    maintainers:
+    - name: rgielen
+      url: https://github.com/rgielen
+    name: manifest-llm-gateway
+    sources:
+    - https://github.com/mnfst/llm-gateway
+    - https://github.com/rgielen/charts
+    type: application
+    urls:
+    - https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.12.0/manifest-llm-gateway-2.12.0.tgz
+    version: 2.12.0
+  - annotations:
+      charts.rgielen.de/upstream-config-sources: packages/backend/src/config/app.config.ts,packages/backend/.env.example,docker/.env.example
+      charts.rgielen.de/upstream-image: docker.io/manifestdotbuild/manifest
+      charts.rgielen.de/upstream-releases: https://github.com/mnfst/llm-gateway/releases/tag/manifest@{version}
+      charts.rgielen.de/upstream-source-roots: packages/backend/src
+      charts.rgielen.de/upstream-tag-pattern: ^[0-9]+\.[0-9]+\.[0-9]+$
+      charts.rgielen.de/upstream-watch-paths: docker/.env.example,docker/docker-compose.yml,packages/backend/.env.example,packages/backend/src/config/app.config.ts
+    apiVersion: v2
     appVersion: 6.28.11
     created: "2026-11-09T09:59:53.905742499Z"
     description: Manifest, the self-hosted LLM gateway, proxy and dashboard.
@@ -1088,4 +1121,4 @@ entries:
     urls:
     - https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-0.1.0/manifest-llm-gateway-0.1.0.tgz
     version: 0.1.0
-generated: "2026-11-09T09:59:53.905886876Z"
+generated: "2026-11-09T10:40:11.935522291Z"
