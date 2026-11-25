@@ -1,6 +1,6 @@
 # manifest-llm-gateway
 
-![Version: 2.12.2](https://img.shields.io/badge/Version-2.12.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.29.4](https://img.shields.io/badge/AppVersion-6.29.4-informational?style=flat-square)
+![Version: 2.13.0](https://img.shields.io/badge/Version-2.13.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 6.29.4](https://img.shields.io/badge/AppVersion-6.29.4-informational?style=flat-square)
 
 Manifest, the self-hosted LLM gateway, proxy and dashboard.
 
@@ -41,13 +41,13 @@ From the Helm repository:
 ```bash
 helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.12.2
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.13.0
 ```
 
 Or directly from the OCI registry:
 
 ```bash
-helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.12.2
+helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.13.0
 ```
 
 ## Source Code
@@ -165,6 +165,7 @@ helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-g
 | manifest.corsOrigins | list | `[]` | Extra browser origins allowed to call the gateway (`WINGMAN_CORS_ORIGINS`). Joined with commas. |
 | manifest.disableHsts | bool | `false` | Silence the boot warning about the missing HSTS header on a plain-http deployment (`MANIFEST_DISABLE_HSTS`). Prefer a real `https://` `publicUrl` anywhere reachable from the internet. |
 | manifest.existingSecret | string | `""` | Name of an existing Secret holding sensitive settings. Its keys are the upstream environment variable names (`BETTER_AUTH_SECRET`, `DATABASE_URL`, `EMAIL_API_KEY`, ...) and it is mounted with `envFrom`. Takes precedence over the plain values below, which makes it the right choice for GitOps: keep the Secret in sealed-secrets or external-secrets and leave the values here empty. |
+| manifest.mcpAnonymousClientRegistration | bool | `false` | Let MCP clients register themselves as OAuth clients before anyone has signed in (`MCP_ALLOW_ANONYMOUS_CLIENT_REGISTRATION`). Off by default: the upstream then accepts dynamic client registration only from a signed-in session, and modern MCP clients identify themselves through a client metadata document instead. Turn it on for a client that insists on registering first. Users still sign in and grant access, and registration still requires PKCE, but anyone who can reach the gateway can then create client records. Has no effect while MCP is off (see `mcpEnabled`). |
 | manifest.mcpEnabled | bool | `true` | Serve the remote MCP endpoint at `/api/v1/mcp`, with its OAuth endpoints (`MCP_ENABLED`). On by default, and the upstream switches it off by itself when `publicUrl` is plain http on a host that is not loopback — the MCP resource URL is derived from `publicUrl` and `@better-auth/mcp` accepts only HTTPS or loopback — naming the reason on every boot. Set this to false to acknowledge that, or to close the MCP surface on an install that could serve it. Only a falsey string disables it upstream, which is what `false` here becomes. |
 | manifest.mode | string | `"selfhosted"` | Deployment mode (`MANIFEST_MODE`). `selfhosted` relaxes the SSRF rules so private and plain-http provider URLs are allowed. Set explicitly rather than left to auto-detection, exactly as the upstream compose file does. `local` is the upstream's legacy alias for `selfhosted` and behaves identically; prefer `selfhosted` for anything new. |
 | manifest.port | int | `2099` | Port the application listens on (`PORT`). |
@@ -542,7 +543,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.12.2
+    targetRevision: 2.13.0
     helm:
       valuesObject:
         manifest:
@@ -610,6 +611,7 @@ in the left column.
 | `CLI_TOKEN_TTL_DAYS`, `CLI_TOKEN_ABSOLUTE_TTL_DAYS` | `manifest.cliToken.ttlDays`, `.absoluteTtlDays` |
 | `MANIFEST_DISABLE_HSTS` | `manifest.disableHsts` |
 | `MCP_ENABLED` | `manifest.mcpEnabled` — see [Reverse proxy and `publicUrl`](#reverse-proxy-and-publicurl) |
+| `MCP_ALLOW_ANONYMOUS_CLIENT_REGISTRATION` | `manifest.mcpAnonymousClientRegistration` |
 | `WINGMAN_CORS_ORIGINS` | `manifest.corsOrigins` (a list; joined with commas) |
 | `THROTTLE_TTL`, `THROTTLE_LIMIT` | `manifest.throttle.ttl`, `.limit` |
 | `AGENT_USAGE_DAILY_WORKER` | `manifest.agentUsage.dailyWorker` |

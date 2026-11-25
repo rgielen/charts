@@ -197,6 +197,7 @@ Non-sensitive environment, as `key: "value"` lines for a ConfigMap.
 {{- include "manifest-llm-gateway.put" (list $d "MANIFEST_DISABLE_HSTS" "1") }}
 {{- end }}
 {{- include "manifest-llm-gateway.put" (list $d "MCP_ENABLED" $m.mcpEnabled) }}
+{{- include "manifest-llm-gateway.put" (list $d "MCP_ALLOW_ANONYMOUS_CLIENT_REGISTRATION" $m.mcpAnonymousClientRegistration) }}
 
 {{- include "manifest-llm-gateway.put" (list $d "DB_POOL_MAX" $m.database.poolMax) }}
 {{- include "manifest-llm-gateway.put" (list $d "AUTH_DB_POOL_MAX" $m.database.authPoolMax) }}

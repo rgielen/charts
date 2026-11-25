@@ -19,6 +19,9 @@ manifest:
   # TLS in the kind cluster -- the value only has to be well-formed for the
   # plugin to accept it. ci/http-lan-values.yaml covers the opposite case.
   publicUrl: https://manifest.ci.example.com
+  # Only this scenario boots with MCP on, so only here does the upstream build
+  # its OAuth plugin with unauthenticated registration allowed.
+  mcpAnonymousClientRegistration: true
   # The second Ingress host below, so the two-host auth path renders and the
   # pod boots with it. A wildcard entry rides along to prove the schema pattern
   # accepts one.

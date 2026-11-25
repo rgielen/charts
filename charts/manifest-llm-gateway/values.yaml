@@ -313,6 +313,17 @@ manifest:
   # @section -- Manifest: core
   mcpEnabled: true
 
+  # -- Let MCP clients register themselves as OAuth clients before anyone has
+  # signed in (`MCP_ALLOW_ANONYMOUS_CLIENT_REGISTRATION`). Off by default: the
+  # upstream then accepts dynamic client registration only from a signed-in
+  # session, and modern MCP clients identify themselves through a client
+  # metadata document instead. Turn it on for a client that insists on
+  # registering first. Users still sign in and grant access, and registration
+  # still requires PKCE, but anyone who can reach the gateway can then create
+  # client records. Has no effect while MCP is off (see `mcpEnabled`).
+  # @section -- Manifest: core
+  mcpAnonymousClientRegistration: false
+
   # -- Extra browser origins allowed to call the gateway
   # (`WINGMAN_CORS_ORIGINS`). Joined with commas.
   # @section -- Manifest: core
