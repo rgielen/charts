@@ -71,6 +71,10 @@
           "type": "boolean",
           "description": "The upstream also switches MCP off by itself when publicUrl is plain http on a non-loopback host, whatever this says; it never switches it back on."
         },
+        "mcpAnonymousClientRegistration": {
+          "type": "boolean",
+          "description": "Read only while MCP is on; the upstream ANDs it with the effective MCP decision."
+        },
         "corsOrigins": { "type": "array", "items": { "type": "string" } },
         "authAllowedHosts": {
           "type": "array",
