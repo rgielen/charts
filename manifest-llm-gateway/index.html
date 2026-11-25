@@ -22,7 +22,7 @@
 <p class="crumbs"><a href="../">Charts</a> <span>/</span> manifest-llm-gateway</p>
 <h1>manifest-llm-gateway</h1>
 <p class="lede">Manifest, the self-hosted LLM gateway, proxy and dashboard.</p>
-<p class="badges"><span class="badge"><span>Chart</span><b>2.12.1</b></span><span class="badge"><span>App</span><b>6.29.3</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
+<p class="badges"><span class="badge"><span>Chart</span><b>2.13.0</b></span><span class="badge"><span>App</span><b>6.29.4</b></span><span class="badge"><span>Type</span><b>application</b></span></p>
 <p class="page-links"><a href="https://manifest.build">manifest.build</a></p>
 
 <div class="layout">
@@ -57,10 +57,10 @@ Kubernetes.</p>
 <p>From the Helm repository:</p>
 <pre><code class="language-bash">helm repo add rgielen https://rgielen.github.io/charts
 helm repo update
-helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.12.1
+helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.13.0
 </code></pre>
 <p>Or directly from the OCI registry:</p>
-<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.12.1
+<pre><code class="language-bash">helm install my-manifest-llm-gateway oci://ghcr.io/rgielen/charts/manifest-llm-gateway --version 2.13.0
 </code></pre>
 <h2 id="source-code">Source Code<a class="anchor" href="#source-code" title="Permanent link">#</a></h2>
 <ul>
@@ -617,6 +617,12 @@ helm install my-manifest-llm-gateway rgielen/manifest-llm-gateway --version 2.12
 <td>string</td>
 <td><code>""</code></td>
 <td>Name of an existing Secret holding sensitive settings. Its keys are the upstream environment variable names (<code>BETTER_AUTH_SECRET</code>, <code>DATABASE_URL</code>, <code>EMAIL_API_KEY</code>, ...) and it is mounted with <code>envFrom</code>. Takes precedence over the plain values below, which makes it the right choice for GitOps: keep the Secret in sealed-secrets or external-secrets and leave the values here empty.</td>
+</tr>
+<tr>
+<td>manifest.mcpAnonymousClientRegistration</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Let MCP clients register themselves as OAuth clients before anyone has signed in (<code>MCP_ALLOW_ANONYMOUS_CLIENT_REGISTRATION</code>). Off by default: the upstream then accepts dynamic client registration only from a signed-in session, and modern MCP clients identify themselves through a client metadata document instead. Turn it on for a client that insists on registering first. Users still sign in and grant access, and registration still requires PKCE, but anyone who can reach the gateway can then create client records. Has no effect while MCP is off (see <code>mcpEnabled</code>).</td>
 </tr>
 <tr>
 <td>manifest.mcpEnabled</td>
@@ -1301,7 +1307,7 @@ spec:
   source:
     repoURL: https://rgielen.github.io/charts
     chart: manifest-llm-gateway
-    targetRevision: 2.12.1
+    targetRevision: 2.13.0
     helm:
       valuesObject:
         manifest:
@@ -1499,6 +1505,10 @@ in the left column.</p>
 <td><code>manifest.mcpEnabled</code> — see <a href="#reverse-proxy-and-publicurl">Reverse proxy and <code>publicUrl</code></a></td>
 </tr>
 <tr>
+<td><code>MCP_ALLOW_ANONYMOUS_CLIENT_REGISTRATION</code></td>
+<td><code>manifest.mcpAnonymousClientRegistration</code></td>
+</tr>
+<tr>
 <td><code>WINGMAN_CORS_ORIGINS</code></td>
 <td><code>manifest.corsOrigins</code> (a list; joined with commas)</td>
 </tr>
@@ -1645,6 +1655,13 @@ re-released with different content.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.13.0"><code>2.13.0</code></a></td>
+<td><code>6.29.4</code></td>
+<td>2026-11-25</td>
+<td><a href="https://github.com/rgielen/charts/releases/download/manifest-llm-gateway-2.13.0/manifest-llm-gateway-2.13.0.tgz"><code>.tgz</code></a></td>
+<td><code>482e5e8674d345e002f…</code></td>
+</tr>
 <tr>
 <td><a href="https://github.com/rgielen/charts/releases/tag/manifest-llm-gateway-2.12.1"><code>2.12.1</code></a></td>
 <td><code>6.29.3</code></td>
@@ -1922,7 +1939,7 @@ unattended only when the bump is not a major one and the diff is clean.</p>
 </tr>
 <tr>
 <td>Release notes</td>
-<td><a href="https://github.com/mnfst/llm-gateway/releases/tag/manifest@6.29.3">manifest@6.29.3</a> — not every image tag has one</td>
+<td><a href="https://github.com/mnfst/llm-gateway/releases/tag/manifest@6.29.4">manifest@6.29.4</a> — not every image tag has one</td>
 </tr>
 <tr>
 <td>Watched files</td>
